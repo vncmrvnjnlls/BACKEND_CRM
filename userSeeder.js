@@ -1,0 +1,256 @@
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
+require("dotenv").config();
+
+const User = require("./models/User");
+
+mongoose.connect(process.env.MONGO_URI);
+
+const userSeeder = async () => {
+  try {
+    await User.deleteMany();
+
+    const users = [
+      // --- ADMINS ---
+      {
+        firstName: "Carl Edwin",
+        middleName: "Vasquez",
+        lastName: "Conde",
+        suffixName: "Jr.",
+        email: "admin@gmail.com",
+        password: await bcrypt.hash("Admin123", 10),
+        role: "Admin",
+        phone: "09123456789",
+        sex: "Male",
+        dateOfBirth: new Date("1990-01-01"),
+        placeOfBirth: "Iriga City, Cam Sur",
+        currentAddress: {
+          houseNumber: "123",
+          street: "Main St",
+          barangay: "San Roque",
+          municipality: "Nabua",
+          province: "Camarines Sur",
+          zipCode: "4434",
+        },
+        status: "active",
+      },
+      {
+        firstName: "Sarah",
+        middleName: "Gomez",
+        lastName: "Villafuerte",
+        email: "sarah.admin@gmail.com",
+        password: await bcrypt.hash("SarahAdmin!23", 10),
+        role: "Admin",
+        phone: "09159998877",
+        sex: "Female",
+        dateOfBirth: new Date("1988-03-14"),
+        placeOfBirth: "Naga City, Cam Sur",
+        currentAddress: {
+          street: "Panganiban Drive",
+          barangay: "Lerma",
+          municipality: "Naga City",
+          province: "Camarines Sur",
+          zipCode: "4400",
+        },
+        status: "active",
+      },
+      // --- SALES MANAGERS ---
+      {
+        firstName: "Mark Vincent",
+        middleName: "Mariscotes",
+        lastName: "Cleofe",
+        email: "cleofe@gmail.com",
+        password: await bcrypt.hash("Cleofe123", 10),
+        role: "Sales Manager",
+        phone: "09123456781",
+        sex: "Male",
+        dateOfBirth: new Date("1985-05-15"),
+        placeOfBirth: "Legazpi City, Albay",
+        currentAddress: {
+          houseNumber: "45",
+          street: "Highway",
+          barangay: "San Francisco",
+          municipality: "Nabua",
+          province: "Camarines Sur",
+          zipCode: "4434",
+        },
+        status: "active",
+      },
+      {
+        firstName: "Elena",
+        middleName: "Solis",
+        lastName: "Reyes",
+        email: "elena.reyes@gmail.com",
+        password: await bcrypt.hash("Manager123", 10),
+        role: "Sales Manager",
+        phone: "09171234567",
+        sex: "Female",
+        dateOfBirth: new Date("1982-11-20"),
+        placeOfBirth: "Legazpi City, Albay",
+        currentAddress: {
+          street: "Peñaranda St",
+          barangay: "Barangay 1",
+          municipality: "Legazpi City",
+          province: "Albay",
+          zipCode: "4500",
+        },
+        status: "active",
+      },
+      {
+        firstName: "Ricardo",
+        middleName: "Bautista",
+        lastName: "Luna",
+        email: "ricardo.luna@gmail.com",
+        password: await bcrypt.hash("RicLuna88", 10),
+        role: "Sales Manager",
+        phone: "09192223344",
+        sex: "Male",
+        dateOfBirth: new Date("1980-08-08"),
+        placeOfBirth: "Tabaco City, Albay",
+        currentAddress: {
+          houseNumber: "77",
+          street: "Ziga Ave",
+          barangay: "Quinale",
+          municipality: "Tabaco City",
+          province: "Albay",
+          zipCode: "4511",
+        },
+        status: "active",
+      },
+      // --- SALES AGENTS ---
+      {
+        firstName: "John",
+        middleName: "Quinto",
+        lastName: "Doe",
+        email: "agent@gmail.com",
+        password: await bcrypt.hash("Agent123", 10),
+        role: "Sales Agent",
+        phone: "09228887766",
+        sex: "Male",
+        dateOfBirth: new Date("1995-07-12"),
+        placeOfBirth: "Legazpi City, Albay",
+        currentAddress: {
+          street: "Zone 4",
+          barangay: "Sta. Cruz",
+          municipality: "Baao",
+          province: "Camarines Sur",
+          zipCode: "4432",
+        },
+        status: "active",
+      },
+      {
+        firstName: "Maria",
+        middleName: "Clara",
+        lastName: "Santos",
+        email: "maria.santos@gmail.com",
+        password: await bcrypt.hash("Agent456", 10),
+        role: "Sales Agent",
+        phone: "09187776655",
+        sex: "Female",
+        dateOfBirth: new Date("1998-02-28"),
+        placeOfBirth: "Legazpi City, Albay",
+        currentAddress: {
+          houseNumber: "Lot 12",
+          street: "Orchid St",
+          barangay: "Sagrada",
+          municipality: "Bula",
+          province: "Camarines Sur",
+          zipCode: "4430",
+        },
+        status: "active",
+      },
+      {
+        firstName: "Roberto",
+        middleName: "Dela",
+        lastName: "Cruz",
+        email: "rob.dc@gmail.com",
+        password: await bcrypt.hash("Rob12345", 10),
+        role: "Sales Agent",
+        phone: "09095554433",
+        sex: "Male",
+        dateOfBirth: new Date("1993-10-05"),
+        placeOfBirth: "Legazpi City, Albay",
+        currentAddress: {
+          street: "Maharlika Highway",
+          barangay: "San Agustin",
+          municipality: "Pili",
+          province: "Camarines Sur",
+          zipCode: "4418",
+        },
+        status: "inactive",
+      },
+      {
+        firstName: "Angela",
+        middleName: "Grace",
+        lastName: "Mendoza",
+        email: "angela.m@gmail.com",
+        password: await bcrypt.hash("Angela99", 10),
+        role: "Sales Agent",
+        phone: "09214445566",
+        sex: "Female",
+        dateOfBirth: new Date("1996-12-25"),
+        placeOfBirth: "Sorsogon City",
+        currentAddress: {
+          street: "Rizal St",
+          barangay: "Piot",
+          municipality: "Sorsogon City",
+          province: "Sorsogon",
+          zipCode: "4700",
+        },
+        status: "active",
+      },
+      // --- SUPPORT STAFF ---
+      {
+        firstName: "Lisa",
+        middleName: "Mae",
+        lastName: "Support",
+        email: "support@gmail.com",
+        password: await bcrypt.hash("Support123", 10),
+        role: "Support Staff",
+        phone: "09451239876",
+        sex: "Female",
+        dateOfBirth: new Date("1991-04-18"),
+        placeOfBirth: "Legazpi City, Albay",
+        currentAddress: {
+          street: "Magsaysay Ave",
+          barangay: "Concepcion Pequeña",
+          municipality: "Naga City",
+          province: "Cam Sur",
+          zipCode: "4400",
+        },
+        status: "active",
+      },
+      {
+        firstName: "Kevin",
+        middleName: "Paul",
+        lastName: "Tan",
+        email: "kevin.tan@gmail.com",
+        password: await bcrypt.hash("Kevin789", 10),
+        role: "Support Staff",
+        phone: "09321112233",
+        sex: "Male",
+        dateOfBirth: new Date("1994-12-30"),
+        placeOfBirth: "Legazpi City, Albay",
+        currentAddress: {
+          houseNumber: "Unit 201",
+          street: "Taft Ave",
+          barangay: "Malate",
+          municipality: "Manila",
+          province: "Metro Manila",
+          zipCode: "1004",
+        },
+        status: "active",
+      },
+    ];
+
+    await User.insertMany(users);
+
+    console.log("Sample users inserted successfully with new schema");
+    process.exit();
+  } catch (error) {
+    console.error("Error seeding users:", error);
+    process.exit(1);
+  }
+};
+
+userSeeder();
