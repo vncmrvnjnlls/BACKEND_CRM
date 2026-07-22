@@ -4,6 +4,9 @@ const router = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const requireRole = require("../middleware/roleMiddleware");
 
+// 1. IMPORT MO RITO ANG USER MODEL (Siguraduhing tama ang path papunta sa models folder mo)
+const User = require("../models/User"); 
+
 const {
   createUser,
   getAllUsers,
@@ -15,6 +18,7 @@ const {
   getUserCustomers,
   getUserDeals,
   getUserTasks,
+  updateUserAccess,
 } = require("../controllers/userController");
 
 router.use(authMiddleware);
@@ -29,11 +33,34 @@ router.get(
   getAssignableUsers,
 );
 
+// --- DITO NATIN NILAGAY ANG DROPDOWN PARA HINDI SIYA MAUNAHAN NG ANOMALOUS ROUTE PARAMETERS ---
+
+// GET all users for dropdown selection (Admin Only)
+router.get("/dropdown", requireRole("Admin"), async (req, res) => {
+  try {
+    const users = await User.find({}, "employeeId firstName lastName role");
+    res.status(200).json(users);
+  } catch (err) { 
+    res.status(500).json({ error: err.message }); 
+  }
+});
+
 // GET user-owned records (admin only)
 router.get("/:employeeId/leads", requireRole("Admin"), getUserLeads);
 router.get("/:employeeId/customers", requireRole("Admin"), getUserCustomers);
 router.get("/:employeeId/deals", requireRole("Admin"), getUserDeals);
 router.get("/:employeeId/tasks", requireRole("Admin"), getUserTasks);
+
+// GET single user access details for dynamic rendering
+router.get("/:employeeId/details", requireRole("Admin"), async (req, res) => {
+  try {
+    const user = await User.findOne({ employeeId: req.params.employeeId });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.status(200).json(user);
+  } catch (err) { 
+    res.status(500).json({ error: err.message }); 
+  }
+});
 
 // GET a single user
 router.get("/:employeeId", requireRole("Admin"), getSingleUser);
@@ -57,30 +84,7 @@ router.patch(
   updateUser,
 );
 
-router.get("/dropdown", async (req, res) => {
-  try {
-    const users = await User.find({}, "employeeId firstName lastName role");
-    res.status(200).json(users);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-router.get("/:employeeId/details", async (req, res) => {
-  try {
-    const user = await User.findOne({ employeeId });
-    res.status(200).json(user);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-router.patch("/:employeeId/access", async (req, res) => {
-  try {
-    const { role, accessModules } = req.body;
-    const updatedUser = await User.findOneAndUpdate(
-      { employeeId: req.params.employeeId },
-      { role, accessModules },
-      { new: true }
-    );
-    res.status(200).json(updatedUser);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
+// PATCH target user dynamic permission updates
+router.patch("/:employeeId/access", requireRole("Admin"), updateUserAccess);
 
 module.exports = router;

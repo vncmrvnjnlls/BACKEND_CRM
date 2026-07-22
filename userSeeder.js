@@ -13,6 +13,25 @@ const userSeeder = async () => {
     const users = [
       // --- ADMINS ---
       {
+        firstName: "Super",
+        middleName: "System",
+        lastName: "Admin",
+        email: "superadmin@crm.com",
+        password: await bcrypt.hash("SuperAdmin123!", 10),
+        role: "Super Admin",
+        phone: "09170000000",
+        sex: "Male",
+        dateOfBirth: new Date("1990-01-01"),
+        placeOfBirth: "Naga City",
+        currentAddress: {
+          municipality: "Naga City",
+          province: "Camarines Sur",
+          zipCode: "4400",
+          country: "Philippines",
+        },
+        status: "active",
+      },
+      {
         firstName: "Carl Edwin",
         middleName: "Vasquez",
         lastName: "Conde",

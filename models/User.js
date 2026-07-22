@@ -6,14 +6,12 @@ const nanoid = customAlphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 6);
 
 /**
  * User Model - Represents a system user (employee)
- * 
- * Roles:
- *   - Admin: Full system access
- *   - Sales Manager: Can manage team members and their data
- *   - Sales Agent: Can manage their own leads, customers, deals
- *   - Support Staff: Can view data (limited access)
- * 
- * Each user belongs to exactly one team (Sales Managers create and lead teams)
+ * * Roles:
+ * - Admin: Full system access
+ * - Sales Manager: Can manage team members and their data
+ * - Sales Agent: Can manage their own leads, customers, deals
+ * - Support Staff: Can view data (limited access)
+ * * Each user belongs to exactly one team (Sales Managers create and lead teams)
  * Passwords are never selected by default (select: false)
  */
 const userSchema = new mongoose.Schema(
@@ -28,6 +26,7 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Team",
       default: null,
+      required: false,
     },
     firstName: {
       type: String,
@@ -60,14 +59,13 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["Admin", "Sales Manager", "Sales Agent", "Support Staff"],
+      enum: ["Super Admin", "Admin", "Sales Manager", "Sales Agent", "Support Staff"],
       required: true,
       index: true,
-      default: "Sales Agent" 
     },
     accessModules: {
       type: [String],
-      default: ["Dashboard"] // Ito ang magse-save ng mga checked items tulad ng ["Dashboard", "Teams"]
+      default: [], // Sasalo sa array ng custom modules tulad ng ["Dashboard", "Teams", "Clients"]
     },
     phone: {
       type: String,

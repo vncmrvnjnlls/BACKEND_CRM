@@ -92,7 +92,7 @@ const getScopedAgentIds = async (req) => {
   const currentUser = await getCurrentUserWithTeam(req);
   if (!currentUser) return [];
 
-  if (currentUser.role === "Admin") {
+  if (["Super Admin", "Admin"].includes(currentUser.role)) {
     return null; // null = unrestricted
   }
 
@@ -173,132 +173,40 @@ const validateAssignableSalesAgent = async (req, targetUserId) => {
 };
 
 const buildLeadAccessFilter = async (req) => {
-  const { role, userId } = req.user;
+  const { role } = req.user;
 
-  if (role === "Admin") return {};
-
-  if (role === "Sales Agent") {
-    if (await isTeamlessAgent(req)) return { _id: null };
-    const userObjectId = new mongoose.Types.ObjectId(userId);
-
-    return {
-      $or: [{ leadAssignee: userObjectId }, { leadOwner: userObjectId }],
-    };
-  }
-
-  if (role === "Sales Manager") {
-    if (await isTeamlessManager(req)) return { _id: null };
-    const agentIds = await getTeamAgentIdsForManager(userId);
-    const objectAgentIds = agentIds.map(
-      (id) => new mongoose.Types.ObjectId(id),
-    );
-    const managerObjectId = new mongoose.Types.ObjectId(userId);
-
-    return {
-      $or: [
-        { leadOwner: managerObjectId },
-        { leadAssignee: { $in: objectAgentIds } },
-      ],
-    };
+  if (["Super Admin", "Admin", "Sales Agent", "Sales Manager"].includes(role)) {
+    return {};
   }
 
   return { _id: null };
 };
 
 const buildDealAccessFilter = async (req) => {
-  const { role, userId } = req.user;
+  const { role } = req.user;
 
-  if (role === "Admin") return {};
-
-  if (role === "Sales Agent") {
-    if (await isTeamlessAgent(req)) return { _id: null };
-    const userObjectId = new mongoose.Types.ObjectId(userId);
-
-    return {
-      $or: [{ assignedTo: userObjectId }, { createdBy: userObjectId }],
-    };
-  }
-
-  if (role === "Sales Manager") {
-    if (await isTeamlessManager(req)) return { _id: null };
-    const agentIds = await getTeamAgentIdsForManager(userId);
-    const objectAgentIds = agentIds.map(
-      (id) => new mongoose.Types.ObjectId(id),
-    );
-    const managerObjectId = new mongoose.Types.ObjectId(userId);
-
-    return {
-      $or: [
-        { createdBy: managerObjectId },
-        { assignedTo: { $in: objectAgentIds } },
-      ],
-    };
+  if (["Super Admin", "Admin", "Sales Agent", "Sales Manager"].includes(role)) {
+    return {};
   }
 
   return { _id: null };
 };
 
 const buildTaskAccessFilter = async (req) => {
-  const { role, userId } = req.user;
+  const { role } = req.user;
 
-  if (role === "Admin") return {};
-
-  if (role === "Sales Agent") {
-    if (await isTeamlessAgent(req)) return { _id: null };
-    const userObjectId = new mongoose.Types.ObjectId(userId);
-
-    return {
-      $or: [{ assignedTo: userObjectId }, { createdBy: userObjectId }],
-    };
-  }
-
-  if (role === "Sales Manager") {
-    if (await isTeamlessManager(req)) return { _id: null };
-    const agentIds = await getTeamAgentIdsForManager(userId);
-    const objectAgentIds = agentIds.map(
-      (id) => new mongoose.Types.ObjectId(id),
-    );
-    const managerObjectId = new mongoose.Types.ObjectId(userId);
-
-    return {
-      $or: [
-        { createdBy: managerObjectId },
-        { assignedTo: { $in: objectAgentIds } },
-      ],
-    };
+  if (["Super Admin", "Admin", "Sales Agent", "Sales Manager"].includes(role)) {
+    return {};
   }
 
   return { _id: null };
 };
 
 const buildCustomerAccessFilter = async (req) => {
-  const { role, userId } = req.user;
+  const { role } = req.user;
 
-  if (role === "Admin") return {};
-
-  if (role === "Sales Agent") {
-    if (await isTeamlessAgent(req)) return { _id: null };
-    const userObjectId = new mongoose.Types.ObjectId(userId);
-
-    return {
-      $or: [{ assignedTo: userObjectId }, { createdBy: userObjectId }],
-    };
-  }
-
-  if (role === "Sales Manager") {
-    if (await isTeamlessManager(req)) return { _id: null };
-    const agentIds = await getTeamAgentIdsForManager(userId);
-    const objectAgentIds = agentIds.map(
-      (id) => new mongoose.Types.ObjectId(id),
-    );
-    const managerObjectId = new mongoose.Types.ObjectId(userId);
-
-    return {
-      $or: [
-        { createdBy: managerObjectId },
-        { assignedTo: { $in: objectAgentIds } },
-      ],
-    };
+  if (["Super Admin", "Admin", "Sales Agent", "Sales Manager"].includes(role)) {
+    return {};
   }
 
   return { _id: null };
@@ -309,53 +217,14 @@ const ensureDocumentAccess = async (req, doc, userFieldResolvers = []) => {
     return { ok: false, status: 404, error: "Resource not found" };
   }
 
-  if (req.user.role === "Admin") {
+  if (["Super Admin", "Admin"].includes(req.user.role)) {
     return { ok: true };
   }
 
   const currentUserId = req.user.userId;
 
-  if (req.user.role === "Sales Agent") {
-    if (await isTeamlessAgent(req)) {
-      return {
-        ok: false,
-        status: 403,
-        error: "You must be assigned to a team first",
-      };
-    }
-
-    const allowed = userFieldResolvers.some((resolver) => {
-      const value = resolver(doc);
-      return value && value.toString() === currentUserId.toString();
-    });
-
-    return allowed
-      ? { ok: true }
-      : { ok: false, status: 403, error: "Access denied" };
-  }
-
-  if (req.user.role === "Sales Manager") {
-    if (await isTeamlessManager(req)) {
-      return {
-        ok: false,
-        status: 403,
-        error: "You must be assigned to manage a team first",
-      };
-    }
-
-    const teamAgentIds = await getTeamAgentIdsForManager(currentUserId);
-
-    const allowed = userFieldResolvers.some((resolver) => {
-      const value = resolver(doc);
-      if (!value) return false;
-
-      const id = value.toString();
-      return id === currentUserId.toString() || teamAgentIds.includes(id);
-    });
-
-    return allowed
-      ? { ok: true }
-      : { ok: false, status: 403, error: "Access denied" };
+  if (req.user.role === "Sales Agent" || req.user.role === "Sales Manager") {
+    return { ok: true };
   }
 
   return { ok: false, status: 403, error: "Access denied" };
@@ -366,23 +235,24 @@ const getAssignableUsersForRequest = async (req, options = {}) => {
 
   const { role, userId } = req.user;
 
-  if (role === "Admin") {
+  if (["Super Admin", "Admin"].includes(role)) {
     return User.find({ role: { $in: allowedRoles } })
       .select(ASSIGNEE_SELECT)
       .sort(USER_DEFAULT_SORT);
   }
 
   if (role === "Sales Manager") {
-    const teamAgentIds = await getTeamAgentIdsForManager(userId);
-
-    const ids = includeSelf ? [...teamAgentIds, userId] : teamAgentIds;
-
-    return User.find({
-      _id: { $in: ids },
+    const query = {
       role: {
         $in: includeSelf ? [...allowedRoles, "Sales Manager"] : allowedRoles,
       },
-    })
+    };
+
+    if (includeSelf) {
+      query._id = { $in: [userId] };
+    }
+
+    return User.find(query)
       .select(ASSIGNEE_SELECT)
       .sort(USER_DEFAULT_SORT);
   }
@@ -410,7 +280,7 @@ const findTeamManagers = async (teamId) => {
 
   const admins = await User.find(
     {
-      role: "Admin",
+      role: { $in: ["Super Admin", "Admin"] },
       status: "active",
     },
     "_id",
@@ -420,7 +290,7 @@ const findTeamManagers = async (teamId) => {
 
   if (
     team.manager.status === "active" &&
-    ["Sales Manager", "Admin"].includes(team.manager.role)
+    ["Sales Manager", "Super Admin", "Admin"].includes(team.manager.role)
   ) {
     managers.push({ _id: team.manager._id });
   }

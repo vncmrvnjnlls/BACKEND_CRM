@@ -18,7 +18,7 @@ const getUserId = (req, prospect = null) => {
 };
 
 const getFallbackUserId = async () => {
-  const admin = await User.findOne({ role: "Admin" }).select("_id");
+  const admin = await User.findOne({ role: { $in: ["Super Admin", "Admin"] } }).select("_id");
 
   if (admin) {
     return admin._id;

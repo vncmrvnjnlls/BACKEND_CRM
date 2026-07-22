@@ -28,7 +28,7 @@ const getAllMeetings = async (req, res) => {
           { host: new mongoose.Types.ObjectId(userId) }
         ]
       };
-    } else if (role === "Admin") {
+    } else if (["Super Admin", "Admin"].includes(role)) {
       // Ang Admin ay walang filter para makita ang lahat ng 5 meetings sa system!
       filter = {};
     }

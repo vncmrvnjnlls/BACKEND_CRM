@@ -19,6 +19,7 @@ const callRoutes = require("./routes/callRoute");
 const meetingRoutes = require("./routes/meetingRoute");
 const taskRoutes = require("./routes/taskRoute"); // Newly added route for tasks
 const dashboardRoutes = require("./routes/dashboardRoute");
+const userRoutes = require("./routes/userRoute");
 
 const app = express();
 const server = http.createServer(app);
@@ -69,6 +70,7 @@ app.use("/api/calls", callRoutes);
 app.use("/api/meetings", meetingRoutes);
 app.use("/api/tasks", taskRoutes); //newly added route for tasks
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/users", userRoutes);
 
 indexRoutes(app);
 

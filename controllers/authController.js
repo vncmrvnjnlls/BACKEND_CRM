@@ -82,6 +82,7 @@ const formatUser = async (user) => {
     profilePicture: user.profilePicture,
     phone: user.phone,
     status: user.status,
+    accessModules: Array.isArray(user.accessModules) ? user.accessModules : [],
   };
 };
 

@@ -95,7 +95,6 @@ const getSingleUser = async (req, res) => {
 // ==========================================
 // 2. CREATE A NEW USER (Inayos ang validation catch at logs)
 // ==========================================
-
 const createUser = async (req, res) => {
   const {
     team,
@@ -202,106 +201,6 @@ const createUser = async (req, res) => {
   }
 };
 
-// -----------------------------------------------------------------------------------
-// const createUser = async (req, res) => {
-//   const {
-//     team,
-//     firstName,
-//     middleName,
-//     lastName,
-//     suffixName,
-//     email,
-//     password,
-//     role,
-//     phone,
-//     sex,
-//     dateOfBirth,
-//     placeOfBirth,
-//     currentAddress
-//   } = req.body;
-
-//   try {
-//     // 1. Validations para sa mga required at blangkong fields mula sa Postman request
-//     if (!email || email.trim() === "") {
-//       return res.status(400).json({ error: "Email field is strictly required." });
-//     }
-//     if (!password || password.trim() === "") {
-//       return res.status(400).json({ error: "Password field is strictly required." });
-//     }
-//     if (!firstName || firstName.trim() === "") {
-//       return res.status(400).json({ error: "First Name is required." });
-//     }
-//     if (!lastName || lastName.trim() === "") {
-//       return res.status(400).json({ error: "Last Name is required." });
-//     }
-
-//     // 2. Phone validation check
-//     const phoneErr = validatePhone(phone);
-//     if (phoneErr) {
-//       return res.status(400).json({ error: phoneErr });
-//     }
-//     const cleanedPhone = phone ? phone.replace(/[\s\-().]/g, "") : "";
-
-//     // 3. Team allocation constraint validation
-//     const teamValidation = await validateTeamAssignment(role, team || null);
-//     if (!teamValidation.ok) {
-//       return res
-//         .status(teamValidation.status)
-//         .json({ error: teamValidation.error });
-//     }
-
-//     // 4. Ligtas na password hashing matapos ma-verify na may laman
-//     const hashedPassword = await bcrypt.hash(password, 10);
-
-//     const profilePicture = req.file
-//       ? `/uploads/profile_pictures/${req.file.filename}`
-//       : "";
-
-//     // 5. Pag-save sa Mongoose collection model
-//     const user = await User.create({
-//       team: team || null,
-//       firstName: firstName.trim(),
-//       middleName: middleName ? middleName.trim() : "",
-//       lastName: lastName.trim(),
-//       suffixName: suffixName ? suffixName.trim() : "",
-//       email: email.trim().toLowerCase(),
-//       password: hashedPassword,
-//       role,
-//       phone: cleanedPhone,
-//       sex,
-//       dateOfBirth: dateOfBirth || null,
-//       placeOfBirth: placeOfBirth || "",
-//       currentAddress,
-//       profilePicture,
-//     });
-
-//     if (team && role === "Sales Agent") {
-//       await Team.findByIdAndUpdate(team, { $addToSet: { agents: user._id } });
-//     }
-
-//     const populatedUser = await User.findById(user._id).populate(TEAM_POPULATE);
-//     res.status(200).json(populatedUser);
-
-//   } catch (error) {
-//     // Nahuhuli nito ang unique database indexing constraints duplication
-//     if (error.code === 11000 && error.keyPattern?.email) {
-//       return res.status(400).json({
-//         error: "Email already exists. Please use a different email.",
-//       });
-//     }
-
-//     // Nahuhuli nito ang schema-defined built-in strict field rules validation errors
-//     if (error.name === "ValidationError") {
-//       const errors = Object.values(error.errors).map((err) => err.message);
-//       return res.status(400).json({ error: errors.join(", ") });
-//     }
-
-//     console.error("Create user error detailed log:", error);
-//     res.status(500).json({ error: error.message || "Server error" });
-//   }
-// };
-// -------------------------------------------------------------------------------------------------------
-
 // ==========================================
 // 3. DELETE A USER (Inayos para sa _id at employeeId lookups)
 // ==========================================
@@ -343,7 +242,7 @@ const deleteUser = async (req, res) => {
     res.status(500).json({ error: "Failed to delete user" });
   }
 };
-// update a user
+
 // update a user
 const updateUser = async (req, res) => {
   const { employeeId } = req.params;
@@ -730,6 +629,111 @@ const getUserTasks = async (req, res) => {
   }
 };
 
+
+// ===================================================================================
+// 🌟 USER ACCESS MODULE MANAGEMENT CONTROLLERS (Para sa Admin Checkbox Workspace)
+// ===================================================================================
+
+// @desc    Kuhanin ang listahan ng active users para sa select dropdown
+// @route   GET /api/users/dropdown
+// @access  Private (Admin Only)
+const getUsersDropdown = async (req, res) => {
+  try {
+    const users = await User.find({ status: "active" })
+      .select("firstName lastName middleName employeeId role")
+      .sort({ firstName: 1 });
+
+    const formattedUsers = users.map((u) => ({
+      _id: u._id,
+      name: `${u.firstName} ${u.lastName} (${u.employeeId})`,
+      role: u.role,
+    }));
+
+    res.status(200).json(formattedUsers);
+  } catch (error) {
+    console.error("Get users dropdown error:", error);
+    res.status(500).json({ error: "Failed to fetch user list for dropdown." });
+  }
+};
+
+// @desc    Kuhanin ang impormasyon at modules ng napiling user
+// @route   GET /api/users/:id/details
+// @access  Private (Admin Only)
+const getUserDetails = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const user = await User.findById(id)
+      .populate("team")
+      .select("firstName lastName middleName email role team status accessModules");
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.error("Get user details error:", error);
+    res.status(500).json({ error: "Failed to load user information." });
+  }
+};
+
+// @desc    I-save ang binagong role at access modules ng user (Admin Only)
+// @route   PATCH /api/users/:employeeId/access
+// @access  Private (Admin Only)
+const updateUserAccess = async (req, res) => {
+  const { employeeId } = req.params;
+  const { role, accessModules } = req.body;
+
+  try {
+    const targetUser = await User.findOne({ employeeId });
+    if (!targetUser) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const currentUser = req.user;
+    const newRole = role || targetUser.role;
+
+    if (currentUser.role === "Admin") {
+      if (
+        ["Admin", "Super Admin"].includes(targetUser.role) ||
+        ["Admin", "Super Admin"].includes(newRole)
+      ) {
+        return res.status(403).json({
+          error: "Only Super Admin can modify admin-level access.",
+        });
+      }
+    }
+
+    if (
+      targetUser._id.toString() === currentUser.id.toString() &&
+      !["Super Admin", "Admin"].includes(newRole)
+    ) {
+      return res.status(400).json({
+        error: "You are not allowed to change or demote your own admin role.",
+      });
+    }
+
+    if (role) targetUser.role = role;
+    if (Array.isArray(accessModules)) targetUser.accessModules = accessModules;
+
+    await targetUser.save();
+
+    res.status(200).json({
+      message: "User privileges saved and updated successfully.",
+      user: {
+        _id: targetUser._id,
+        name: `${targetUser.firstName} ${targetUser.lastName}`,
+        role: targetUser.role,
+        accessModules: targetUser.accessModules,
+      },
+    });
+  } catch (error) {
+    console.error("Update user access error:", error);
+    res.status(500).json({ error: "Failed to process user access modifications." });
+  }
+};
+
+
 module.exports = {
   getAllUsers,
   getSingleUser,
@@ -741,4 +745,7 @@ module.exports = {
   getUserCustomers,
   getUserDeals,
   getUserTasks,
+  getUsersDropdown,
+  getUserDetails,
+  updateUserAccess,
 };

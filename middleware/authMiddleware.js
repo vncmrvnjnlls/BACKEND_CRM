@@ -49,5 +49,18 @@ const protect = async (req, res, next) => {
   }
 };
 
+// Middleware para siguraduhing ADMIN LANG ang may access sa endpoint
+const adminOnly = (req, res, next) => {
+  if (req.user && ["Super Admin", "Admin"].includes(req.user.role)) {
+    next();
+  } else {
+    res.status(403).json({
+      success: false,
+      message: "Access denied. Only system administrators can manage user permissions.",
+    });
+  }
+};
+
 module.exports = protect;
 module.exports.protect = protect;
+module.exports.adminOnly = adminOnly;
