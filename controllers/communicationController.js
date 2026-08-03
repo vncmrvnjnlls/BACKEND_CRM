@@ -12,6 +12,7 @@ const getConversations = async (req, res) => {
     const userId = req.user.userId;
     const communications = await Communication.find({
       $or: [{ sender: userId }, { recipient: userId }],
+      deletedBy: { $ne: userId },
     })
       .sort({ createdAt: -1 })
       .populate("sender", "firstName middleName lastName suffixName email role profilePicture")
@@ -35,6 +36,7 @@ const getConversationWithUser = async (req, res) => {
         { sender: userId, recipient: otherId },
         { sender: otherId, recipient: userId },
       ],
+      deletedBy: { $ne: userId },
     })
       .sort({ createdAt: 1 })
       .populate("sender", "firstName middleName lastName suffixName email role profilePicture")
@@ -121,30 +123,43 @@ const updateCommunication = async (req, res) => {
   }
 };
 
-// 🌟 NEW: Delete Message
+// Delete Message
 const deleteCommunication = async (req, res) => {
   try {
     const senderId = req.user.userId;
     const communicationId = req.params.id;
 
-    // Ensure only the original sender can delete their message
-    const communication = await Communication.findOneAndDelete({
-      _id: communicationId,
-      sender: senderId,
-    });
+    const communication = await Communication.findById(communicationId);
 
     if (!communication) {
       return res.status(404).json({
-        error: "Message not found or you are not authorized to delete this message.",
+        error: "Message not found.",
       });
     }
 
-    // Emit real-time deletion event to both parties
+    const isSender = String(communication.sender) === String(senderId);
+    const isRecipient = String(communication.recipient) === String(senderId);
+
+    if (!isSender && !isRecipient) {
+      return res.status(403).json({
+        error: "You are not authorized to delete this message.",
+      });
+    }
+
+    const deletedBy = communication.deletedBy || [];
+    const alreadyDeleted = deletedBy.some((id) => String(id) === String(senderId));
+
+    if (!alreadyDeleted) {
+      communication.deletedBy = [...deletedBy, senderId];
+      await communication.save();
+    }
+
     const io = getIO();
     io.to(`user:${communication.recipient}`).emit("communication:deleted", {
       communicationId,
+      deletedBy: senderId,
     });
-    io.to(`user:${senderId}`).emit("communication:deleted", { communicationId });
+    io.to(`user:${senderId}`).emit("communication:deleted", { communicationId, deletedBy: senderId });
 
     res.status(200).json({ message: "Message deleted successfully.", communicationId });
   } catch (error) {
@@ -198,12 +213,93 @@ const markCommunicationsReadFromUser = async (req, res) => {
   }
 };
 
+const archiveConversation = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const otherUserId = req.params.userId;
+    const { isArchived } = req.body;
+
+    const communications = await Communication.find({
+      $or: [
+        { sender: userId, recipient: otherUserId },
+        { sender: otherUserId, recipient: userId },
+      ],
+    });
+
+    if (!communications.length) {
+      return res.status(404).json({ error: "Conversation not found." });
+    }
+
+    const update = isArchived
+      ? { $addToSet: { archivedBy: userId } }
+      : { $pull: { archivedBy: userId } };
+
+    await Communication.updateMany(
+      {
+        $or: [
+          { sender: userId, recipient: otherUserId },
+          { sender: otherUserId, recipient: userId },
+        ],
+      },
+      update,
+    );
+
+    const io = getIO();
+    io.to(`user:${userId}`).emit("communication:archived", {
+      userId,
+      otherUserId,
+      isArchived,
+    });
+
+    res.status(200).json({ message: "Conversation archive state updated.", isArchived });
+  } catch (error) {
+    console.error("Archive conversation error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const deleteConversation = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const otherUserId = req.params.userId;
+
+    const result = await Communication.updateMany(
+      {
+        $or: [
+          { sender: userId, recipient: otherUserId },
+          { sender: otherUserId, recipient: userId },
+        ],
+      },
+      {
+        $addToSet: { deletedBy: userId },
+      },
+    );
+
+    if (!result.modifiedCount && !result.matchedCount) {
+      return res.status(404).json({ error: "Conversation not found." });
+    }
+
+    const io = getIO();
+    io.to(`user:${userId}`).emit("communication:conversationDeleted", {
+      userId,
+      otherUserId,
+    });
+
+    res.status(200).json({ message: "Conversation deleted successfully.", otherUserId });
+  } catch (error) {
+    console.error("Delete conversation error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   getConversations,
   getConversationWithUser,
   sendCommunication,
-  updateCommunication, // 👈 Exported
-  deleteCommunication, // 👈 Exported
+  updateCommunication, 
+  deleteCommunication, 
   markCommunicationRead,
   markCommunicationsReadFromUser,
+  archiveConversation,
+  deleteConversation,
 };
