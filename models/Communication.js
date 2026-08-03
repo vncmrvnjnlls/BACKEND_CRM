@@ -24,6 +24,18 @@ const communicationSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    deletedBy: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "User",
+      default: [],
+      index: true,
+    },
+    archivedBy: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "User",
+      default: [],
+      index: true,
+    },
   },
   { timestamps: true },
 );

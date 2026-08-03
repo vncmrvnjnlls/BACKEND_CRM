@@ -5,10 +5,12 @@ const {
   getConversations,
   getConversationWithUser,
   sendCommunication,
-  updateCommunication, // 👈 Added
-  deleteCommunication, // 👈 Added
+  updateCommunication, 
+  deleteCommunication,
   markCommunicationRead,
   markCommunicationsReadFromUser,
+  archiveConversation,
+  deleteConversation,
 } = require("../controllers/communicationController");
 
 router.use(authMiddleware);
@@ -18,11 +20,13 @@ router.get("/", getConversations);
 router.get("/user/:userId", getConversationWithUser);
 router.post("/", sendCommunication);
 
-// 🌟 NEW: Edit and Delete Message Endpoints
+//  Edit and Delete Message Endpoints
 router.patch("/:id", updateCommunication); // Edit message body
 router.delete("/:id", deleteCommunication); // Delete message
 
 router.patch("/user/:userId/read", markCommunicationsReadFromUser);
+router.patch("/user/:userId/archive", archiveConversation);
+router.delete("/user/:userId", deleteConversation);
 router.patch("/:id/read", markCommunicationRead);
 
 module.exports = router;
