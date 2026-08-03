@@ -99,6 +99,7 @@ const leadSchema = new mongoose.Schema(
         "Walk-in",
         "Manual Input", // 🎯 DAGDAG: Para tanggapin ang default fallbacks mula sa prospect controller natin
         "Other",
+        "Others",
       ],
       default: "Other",
     },

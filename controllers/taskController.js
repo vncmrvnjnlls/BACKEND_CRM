@@ -1,5 +1,5 @@
 const Task = require("../models/Task");
-const Quotation = require("../models/Quotation"); // 🟢 In-update mula sa Deal
+const Quotation = require("../models/Quotation");
 const {
   buildTaskAccessFilter,
   ensureDocumentAccess,
@@ -9,6 +9,34 @@ const { reorderCards, moveCard } = require("../utils/kanbanPositioning");
 const {
   autoAdvanceLeadToContacted,
 } = require("../services/leadAutomationService");
+
+const buildTaskAttachments = (files = []) =>
+  (files || []).map((file) => ({
+    name: file.originalname,
+    url: `/uploads/task_attachments/${file.filename}`,
+    path: file.path,
+    mimeType: file.mimetype,
+  }));
+
+const normalizeExistingAttachments = (existingAttachments) => {
+  if (!existingAttachments) return [];
+  const attachments = Array.isArray(existingAttachments)
+    ? existingAttachments
+    : [existingAttachments];
+
+  return attachments
+    .filter(Boolean)
+    .map((item) =>
+      typeof item === "string"
+        ? {
+            name: item.split("/").pop(),
+            url: item,
+            path: item,
+            mimeType: "",
+          }
+        : item,
+    );
+};
 const eventBus = require("../utils/eventBus");
 const events = require("../constants/events");
 
@@ -46,6 +74,10 @@ const fetchAllTasks = async (req) => {
     { $match: filter },
     {
       $addFields: {
+        // 🌟 Ensures 'link', 'linkName', and 'dueTime' fields are always included in aggregate results
+        link: { $ifNull: ["$link", ""] },
+        linkName: { $ifNull: ["$linkName", ""] },
+        dueTime: { $ifNull: ["$dueTime", ""] },
         priorityOrder: {
           $switch: {
             branches: [
@@ -112,7 +144,6 @@ const getSingleTask = async (req, res) => {
   }
 };
 
-// 🟢 PINALITAN: In-update mula sa getDealTasks para tumugma sa Quotation modules natin
 const getQuotationTasks = async (req, res) => {
   try {
     const quotationId = req.params.id;
@@ -131,7 +162,6 @@ const getQuotationTasks = async (req, res) => {
       return res.status(access.status).json({ error: access.error });
     }
 
-    // CRITICAL FIX: "Quotation" na ang hinahanap sa relatedToType filter ngayon
     const tasks = await Task.find({
       relatedToType: "Quotation",
       relatedTo: quotationId,
@@ -156,12 +186,15 @@ const createTask = async (req, res) => {
       priority,
       status,
       dueDate,
+      dueTime,
       reminderAt,
       repeat,
       assignedTo,
       scope,
       relatedToType,
       relatedTo,
+      link,
+      linkName, // 🌟 Extracted linkName from request body
     } = req.body;
 
     if (role === "Sales Agent" && assignedTo && assignedTo !== userId) {
@@ -176,7 +209,7 @@ const createTask = async (req, res) => {
     if (["Admin", "Sales Manager"].includes(role) && resolvedAssignedTo) {
       const assigneeCheck = await validateAssignableSalesAgent(
         req,
-        resolvedAssignedTo,
+        resolvedAssignedTo
       );
       if (!assigneeCheck.ok) {
         return res
@@ -197,13 +230,19 @@ const createTask = async (req, res) => {
 
     const nextPosition = lastTask ? lastTask.position + 1 : 0;
 
+    const existingAttachments = normalizeExistingAttachments(
+      req.body.existingAttachments,
+    );
+    const newAttachments = buildTaskAttachments(req.files);
+
     const task = await Task.create({
       subject,
       description,
-      taskType: taskType || "Other",
+      taskType: taskType || "Others",
       priority: priority || "Medium",
       status: resolvedStatus,
       dueDate: dueDate || null,
+      dueTime: dueTime || "",
       reminderAt: reminderAt || null,
       repeat: repeat || "None",
       assignedTo: resolvedAssignedTo,
@@ -213,6 +252,9 @@ const createTask = async (req, res) => {
       completedAt: resolvedStatus === "Completed" ? new Date() : null,
       position: nextPosition,
       scope: resolvedScope,
+      link: link || "",
+      linkName: linkName || "", // 🌟 Saved linkName field
+      attachments: [...existingAttachments, ...newAttachments],
     });
 
     eventBus.emit(events.TASK_CREATED, {
@@ -256,12 +298,15 @@ const updateTaskDetails = async (req, res) => {
       taskType,
       priority,
       dueDate,
+      dueTime,
       reminderAt,
       repeat,
       assignedTo,
       scope,
       relatedToType,
       relatedTo,
+      link,
+      linkName, // 🌟 Extracted linkName from request body
     } = req.body;
 
     const updateData = {
@@ -270,11 +315,22 @@ const updateTaskDetails = async (req, res) => {
       taskType,
       priority,
       dueDate: dueDate || null,
+      dueTime: dueTime !== undefined ? dueTime : existing.dueTime,
       reminderAt: reminderAt || null,
       repeat,
       relatedToType: relatedToType || null,
       relatedTo: relatedTo || null,
+      link,
+      linkName: linkName !== undefined ? linkName : existing.linkName, // 🌟 Updated linkName field
     };
+
+    const existingAttachments = normalizeExistingAttachments(
+      req.body.existingAttachments,
+    );
+    const newAttachments = buildTaskAttachments(req.files);
+    if (existingAttachments.length > 0 || newAttachments.length > 0) {
+      updateData.attachments = [...existingAttachments, ...newAttachments];
+    }
 
     if (assignedTo !== undefined) {
       updateData.assignedTo = assignedTo || null;
@@ -297,7 +353,7 @@ const updateTaskDetails = async (req, res) => {
       Task.findByIdAndUpdate(req.params.id, updateData, {
         new: true,
         runValidators: true,
-      }),
+      })
     );
 
     eventBus.emit(events.TASK_UPDATED, {
@@ -346,7 +402,7 @@ const updateTaskStatus = async (req, res) => {
     const task = await Task.findByIdAndUpdate(
       id,
       { status, completedAt, position },
-      { new: true },
+      { new: true }
     ).populate(POPULATE_FIELDS);
 
     if (status !== oldStatus) {
@@ -456,8 +512,8 @@ const assignTask = async (req, res) => {
       Task.findByIdAndUpdate(
         req.params.id,
         { $set: { assignedTo: finalAssignedTo, scope: resolvedScope } },
-        { new: true, runValidators: true },
-      ),
+        { new: true, runValidators: true }
+      )
     );
 
     eventBus.emit(events.TASK_ASSIGNED, {
@@ -506,8 +562,8 @@ const updateTaskPriority = async (req, res) => {
       Task.findByIdAndUpdate(
         id,
         { priority },
-        { new: true, runValidators: true },
-      ),
+        { new: true, runValidators: true }
+      )
     );
 
     eventBus.emit(events.TASK_PRIORITY_CHANGED, {
@@ -528,7 +584,7 @@ const updateTaskPriority = async (req, res) => {
 module.exports = {
   getAllTasks,
   getSingleTask,
-  getQuotationTasks, // 🟢 In-update ang export reference name
+  getQuotationTasks,
   createTask,
   updateTaskDetails,
   updateTaskStatus,

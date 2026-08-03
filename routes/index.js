@@ -8,6 +8,7 @@ const clientRoute = require("./clientRoute"); // 🟢 In-update ang variable nam
 const quotationRoute = require("./quotationRoute");
 const activityRoute = require("./activityRoute");
 const notificationRoute = require("./notificationRoute");
+const communicationRoute = require("./communicationRoute");
 const settingsRoute = require("./settingsRoute");
 
 const indexRoutes = (app) => {
@@ -20,6 +21,7 @@ const indexRoutes = (app) => {
   app.use("/api/clients", clientRoute); // 🟢 FIX: therefore /api/clients /api/customers
   app.use("/api/quotations", quotationRoute);
   app.use("/api/activities", activityRoute);
+  app.use("/api/communications", communicationRoute);
   app.use("/api/notifications", notificationRoute);
   app.use("/api/settings", settingsRoute);
 };

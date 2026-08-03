@@ -1,0 +1,209 @@
+const Communication = require("../models/Communication");
+const User = require("../models/User");
+const { getIO } = require("../utils/socketManager");
+
+const populateCommunication = (query) =>
+  query
+    .populate("sender", "firstName middleName lastName suffixName email role profilePicture")
+    .populate("recipient", "firstName middleName lastName suffixName email role profilePicture");
+
+const getConversations = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const communications = await Communication.find({
+      $or: [{ sender: userId }, { recipient: userId }],
+    })
+      .sort({ createdAt: -1 })
+      .populate("sender", "firstName middleName lastName suffixName email role profilePicture")
+      .populate("recipient", "firstName middleName lastName suffixName email role profilePicture")
+      .lean();
+
+    res.status(200).json({ communications });
+  } catch (error) {
+    console.error("Get conversations error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const getConversationWithUser = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const otherId = req.params.userId;
+
+    const communications = await Communication.find({
+      $or: [
+        { sender: userId, recipient: otherId },
+        { sender: otherId, recipient: userId },
+      ],
+    })
+      .sort({ createdAt: 1 })
+      .populate("sender", "firstName middleName lastName suffixName email role profilePicture")
+      .populate("recipient", "firstName middleName lastName suffixName email role profilePicture")
+      .lean();
+
+    res.status(200).json({ communications });
+  } catch (error) {
+    console.error("Get conversation error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const sendCommunication = async (req, res) => {
+  try {
+    const senderId = req.user.userId;
+    const { recipientId, body } = req.body;
+
+    if (!recipientId || !body?.trim()) {
+      return res.status(400).json({ error: "Recipient and message body are required." });
+    }
+
+    const recipient = await User.findById(recipientId).select("_id");
+    if (!recipient) {
+      return res.status(404).json({ error: "Recipient not found." });
+    }
+
+    const communication = await Communication.create({
+      sender: senderId,
+      recipient: recipientId,
+      body: body.trim(),
+    });
+
+    const populated = await populateCommunication(Communication.findById(communication._id));
+
+    const io = getIO();
+    io.to(`user:${recipientId}`).emit("communication:received", populated);
+    io.to(`user:${senderId}`).emit("communication:sent", populated);
+
+    res.status(201).json({ communication: populated });
+  } catch (error) {
+    console.error("Send communication error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 🌟 NEW: Update / Edit Message
+const updateCommunication = async (req, res) => {
+  try {
+    const senderId = req.user.userId;
+    const communicationId = req.params.id;
+    const { body } = req.body;
+
+    if (!body?.trim()) {
+      return res.status(400).json({ error: "Updated message body cannot be empty." });
+    }
+
+    // Ensure only the original sender can edit their message
+    const communication = await Communication.findOne({
+      _id: communicationId,
+      sender: senderId,
+    });
+
+    if (!communication) {
+      return res.status(404).json({
+        error: "Message not found or you are not authorized to edit this message.",
+      });
+    }
+
+    communication.body = body.trim();
+    await communication.save();
+
+    const populated = await populateCommunication(Communication.findById(communication._id));
+
+    // Emit real-time update event to both parties
+    const io = getIO();
+    io.to(`user:${communication.recipient}`).emit("communication:updated", populated);
+    io.to(`user:${senderId}`).emit("communication:updated", populated);
+
+    res.status(200).json({ communication: populated });
+  } catch (error) {
+    console.error("Update communication error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 🌟 NEW: Delete Message
+const deleteCommunication = async (req, res) => {
+  try {
+    const senderId = req.user.userId;
+    const communicationId = req.params.id;
+
+    // Ensure only the original sender can delete their message
+    const communication = await Communication.findOneAndDelete({
+      _id: communicationId,
+      sender: senderId,
+    });
+
+    if (!communication) {
+      return res.status(404).json({
+        error: "Message not found or you are not authorized to delete this message.",
+      });
+    }
+
+    // Emit real-time deletion event to both parties
+    const io = getIO();
+    io.to(`user:${communication.recipient}`).emit("communication:deleted", {
+      communicationId,
+    });
+    io.to(`user:${senderId}`).emit("communication:deleted", { communicationId });
+
+    res.status(200).json({ message: "Message deleted successfully.", communicationId });
+  } catch (error) {
+    console.error("Delete communication error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const markCommunicationRead = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const communicationId = req.params.id;
+
+    const communication = await Communication.findOneAndUpdate(
+      { _id: communicationId, recipient: userId },
+      { isRead: true },
+      { new: true },
+    );
+
+    if (!communication) {
+      return res.status(404).json({ error: "Message not found." });
+    }
+
+    res.status(200).json({ communication });
+  } catch (error) {
+    console.error("Mark communication read error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const markCommunicationsReadFromUser = async (req, res) => {
+  try {
+    const currentUserId = req.user.userId;
+    const otherUserId = req.params.userId;
+
+    const result = await Communication.updateMany(
+      {
+        sender: otherUserId,
+        recipient: currentUserId,
+        isRead: false,
+      },
+      { isRead: true },
+    );
+
+    const updatedCount = result.modifiedCount ?? result.nModified ?? 0;
+
+    res.status(200).json({ updated: updatedCount });
+  } catch (error) {
+    console.error("Mark communications read from user error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+module.exports = {
+  getConversations,
+  getConversationWithUser,
+  sendCommunication,
+  updateCommunication, // 👈 Exported
+  deleteCommunication, // 👈 Exported
+  markCommunicationRead,
+  markCommunicationsReadFromUser,
+};

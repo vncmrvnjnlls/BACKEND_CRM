@@ -231,7 +231,7 @@ const ensureDocumentAccess = async (req, doc, userFieldResolvers = []) => {
 };
 
 const getAssignableUsersForRequest = async (req, options = {}) => {
-  const { allowedRoles = ["Sales Agent"], includeSelf = false } = options;
+  const { allowedRoles = ["Sales Agent", "Sales Manager"], includeSelf = false } = options;
 
   const { role, userId } = req.user;
 

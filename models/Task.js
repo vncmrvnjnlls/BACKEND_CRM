@@ -22,8 +22,8 @@ const taskSchema = new mongoose.Schema(
 
     taskType: {
       type: String,
-      enum: ["Call", "Email", "Message", "Meeting", "Reminder", "Other"],
-      default: "Other",
+      enum: ["Call", "Email", "Message", "Meeting", "Reminder", "Others", "Other"],
+      default: "Others",
     },
 
     priority: {
@@ -35,12 +35,18 @@ const taskSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["Pending", "Ongoing", "Completed", "Overdue"],
-      default: "To Do",
+      default: "Pending",
     },
 
     dueDate: {
       type: Date,
       default: null,
+    },
+
+    dueTime: {
+      type: String,
+      trim: true,
+      default: "", // Stores "HH:mm" e.g., "14:30"
     },
 
     reminderAt: {
@@ -59,6 +65,32 @@ const taskSchema = new mongoose.Schema(
       default: "None",
     },
 
+    // 🌟 Link URL string (to match controllers that save link as a string)
+    link: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    // 🌟 Dedicated linkName property to match your controller and frontend payload
+    linkName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    attachments: {
+      type: [
+        {
+          name: { type: String, trim: true },
+          url: { type: String, trim: true },
+          path: { type: String, trim: true },
+          mimeType: { type: String, trim: true },
+        },
+      ],
+      default: [],
+    },
+
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -73,7 +105,7 @@ const taskSchema = new mongoose.Schema(
 
     relatedToType: {
       type: String,
-      enum: ["Lead", "Customer", "Client", "Deal"],
+      enum: ["Lead", "Customer", "Client", "Deal", "Quotation"],
       default: null,
     },
 

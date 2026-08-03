@@ -161,14 +161,7 @@ const createClient = async (req, res) => {
     }
     const cleanedPhone = phone.replace(/[\s\-().]/g, "");
 
-    if (email) {
-      const emailExists = await Client.findOne({ email });
-      if (emailExists) {
-        return res.status(400).json({
-          error: "Client with this email already exists",
-        });
-      }
-    }
+    // Allow duplicate emails: do not block creation if email already exists
 
     if (assignedTo) {
       const assigneeCheck = await validateAssignableSalesAgent(req, assignedTo);
@@ -246,11 +239,6 @@ const createClient = async (req, res) => {
       client: populated,
     });
   } catch (error) {
-    if (error.code === 11000 && error.keyPattern?.email) {
-      return res
-        .status(400)
-        .json({ error: "Client with this email already exists" });
-    }
     console.error("Create client error:", error);
     res.status(500).json({ error: error.message });
   }
@@ -365,11 +353,6 @@ const updateClient = async (req, res) => {
 
     res.status(200).json(client);
   } catch (error) {
-    if (error.code === 11000 && error.keyPattern?.email) {
-      return res
-        .status(400)
-        .json({ error: "Client with this email already exists" });
-    }
     console.error("Update client error:", error);
     res.status(400).json({ error: error.message });
   }

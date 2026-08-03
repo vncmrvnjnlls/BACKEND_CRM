@@ -57,6 +57,7 @@ const formatUser = async (user) => {
       : null;
 
   return {
+    _id: user._id,
     id: user._id,
 
     team: user.team

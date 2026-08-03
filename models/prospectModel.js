@@ -24,14 +24,14 @@ const prospectSchema = new mongoose.Schema(
     },
     companyWebsite: {
       type: String,
-      trim: true, // Optional field based on the sheet
+      trim: true,
     },
     natureOfBusiness: {
       type: String,
       trim: true,
     },
     numberOfEmployees: {
-      type: String, // Ginawang String para pwede ang mga ranges gaya ng "1-10", "50+", etc.
+      type: String,
       trim: true,
     },
 
@@ -47,13 +47,13 @@ const prospectSchema = new mongoose.Schema(
       middleInitial: { type: String, trim: true },
     },
     title: {
-      type: String, // E.g., CEO, Manager, Procurement Officer
+      type: String,
       trim: true,
     },
     emailAddress: {
-      type: String, // Contact person's direct email
-      unique: true,   // 🟢 Kung gusto mong unique rin ang personal email ng contact person
-      sparse: true,   // 🟢 NAPAKAHALAGA: Pinapayagan ang maraming null o walang emailAddress nang hindi nag-eerror
+      type: String,
+      unique: true,
+      sparse: true,
       lowercase: true,
       trim: true,
     },
@@ -65,6 +65,46 @@ const prospectSchema = new mongoose.Schema(
       type: String,
       required: [true, "Contact Phone Number is required"],
       trim: true,
+    },
+
+    // 🌟 ADDRESS INFORMATION (Matching the UI Form)
+    address: {
+      country: {
+        type: String,
+        required: [true, "Country is required"],
+        default: "Philippines",
+        trim: true,
+      },
+      province: {
+        type: String,
+        required: [true, "Province is required"],
+        trim: true,
+      },
+      municipality: {
+        type: String, // Accepts City / Municipality
+        required: [true, "City / Municipality is required"],
+        trim: true,
+      },
+      barangay: {
+        type: String, // Accepts Barangay / District
+        required: false,
+        trim: true,
+      },
+      street: {
+        type: String,
+        required: false,
+        trim: true,
+      },
+      houseNumber: {
+        type: String,
+        required: false,
+        trim: true,
+      },
+      zipCode: {
+        type: String,
+        required: [true, "Zip Code is required"],
+        trim: true,
+      },
     },
 
     // === CRM INTERNAL SYSTEM FIELDS ===
@@ -83,11 +123,11 @@ const prospectSchema = new mongoose.Schema(
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User", // Sino ang nag-encode na team member
+      ref: "User",
     },
   },
   {
-    timestamps: true, // Awtomatikong magbibigay ng createdAt at updatedAt
+    timestamps: true,
   }
 );
 

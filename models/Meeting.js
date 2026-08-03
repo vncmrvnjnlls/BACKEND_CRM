@@ -7,21 +7,35 @@ const meetingSchema = new mongoose.Schema(
       required: [true, "Meeting title is required"],
       trim: true,
     },
+    // 🌟 ADD THIS FIELD:
+    status: {
+      type: String,
+      enum: [
+        "Scheduled",
+        "In Progress",
+        "Completed",
+        "Cancelled",
+        "Rescheduled",
+        "No Show",
+      ],
+      default: "Scheduled",
+      trim: true,
+    },
     meetingType: {
       type: String, // e.g., "Online", "On-site"
       trim: true,
     },
     client: {
-      type: String, // Tugma sa plain text string structure ng Calls niyo
+      type: String,
       trim: true,
     },
     location: {
-      type: String, // e.g., "Google Meet", "Conference Room"
+      type: String,
       trim: true,
     },
     locationScope: {
       type: String,
-      enum: ["Inside the Philippines", "Outside the country"],
+      enum: ["Inside the Philippines", "Outside the Philippines"],
       default: "Inside the Philippines",
     },
     date: {
@@ -29,11 +43,11 @@ const meetingSchema = new mongoose.Schema(
       required: [true, "Meeting date is required"],
     },
     startTime: {
-      type: String, // e.g., "10:00" o "17:00" base sa UI calendar view niyo
+      type: String,
       required: [true, "Start time is required"],
     },
     endTime: {
-      type: String, // e.g., "11:30" o "18:00"
+      type: String,
       required: [true, "End time is required"],
     },
     host: {
@@ -41,7 +55,7 @@ const meetingSchema = new mongoose.Schema(
       trim: true,
     },
     participants: {
-      type: [String], // Array ng text strings para sa listahan ng participants
+      type: [String],
       default: [],
     },
     notes: {

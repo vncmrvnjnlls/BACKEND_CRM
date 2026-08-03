@@ -64,16 +64,21 @@ const createMeeting = async (req, res) => {
 
 // @desc    Update a meeting
 // @route   PATCH /api/meetings/:id
+// @desc    Update a meeting
+// @route   PATCH /api/meetings/:id
 const updateMeeting = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Pinapayagan nating ma-update ang LAHAT ng fields na pwedeng baguhin sa UI modal
     const updatedMeeting = await Meeting.findByIdAndUpdate(
       id,
       req.body,
       { new: true, runValidators: true }
-    );
+    ).populate({
+      path: "createdBy",
+      select: "firstName lastName",
+      options: { strictPopulate: false },
+    });
 
     if (!updatedMeeting) {
       return res.status(404).json({ error: "Meeting not found" });
@@ -84,7 +89,6 @@ const updateMeeting = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
-
 // @desc    Delete a meeting
 // @route   DELETE /api/meetings/:id
 const deleteMeeting = async (req, res) => {

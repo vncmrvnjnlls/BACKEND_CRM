@@ -51,6 +51,9 @@ const mapLeadSource = (source) => {
     case "Event":
     case "Manual Input":
       return "Manual Input";
+    case "Other":
+    case "Others":
+      return "Other";
     default:
       return "Other";
   }
@@ -107,6 +110,8 @@ const createProspect = async (req, res) => {
       userId = await getFallbackUserId();
     }
 
+    const rawAddress = req.body.address || {};
+
     const payload = {
       companyName: req.body.companyName,
       businessAddress: req.body.businessAddress,
@@ -121,6 +126,17 @@ const createProspect = async (req, res) => {
       emailAddress: cleanEmptyString(req.body.emailAddress),
       viber: req.body.viber,
       phone: req.body.phone,
+
+      // 🌟 ADDED ADDRESS FIELD FROM THE FRONTEND FORM
+      address: {
+        country: rawAddress.country || "Philippines",
+        province: rawAddress.province || "",
+        municipality: rawAddress.municipality || rawAddress.city || "",
+        barangay: rawAddress.barangay || rawAddress.district || "",
+        street: rawAddress.street || "",
+        houseNumber: rawAddress.houseNumber || "",
+        zipCode: rawAddress.zipCode || "",
+      },
 
       status: req.body.status || "New",
       leadSource: req.body.leadSource || "Website",
@@ -173,6 +189,15 @@ const updateProspect = async (req, res) => {
       ...req.body,
       emailAddress: cleanEmptyString(req.body.emailAddress),
     };
+
+    // If address is being updated, balance city/municipality naming
+    if (req.body.address) {
+      payload.address = {
+        ...req.body.address,
+        municipality: req.body.address.municipality || req.body.address.city || "",
+        barangay: req.body.address.barangay || req.body.address.district || "",
+      };
+    }
 
     const prospect = await Prospect.findByIdAndUpdate(id, payload, {
       new: true,
@@ -277,6 +302,10 @@ const markAsContacted = async (req, res) => {
 
     const leadName = getLeadNameFromProspect(prospect);
 
+    // Prefer prospect.address (form input) and fallback to businessAddress
+    const addr = prospect.address || {};
+    const busAddr = prospect.businessAddress || {};
+
     const lead = await Lead.create({
       leadOwner: userId,
       leadAssignee: userId,
@@ -294,13 +323,13 @@ const markAsContacted = async (req, res) => {
       industry: prospect.natureOfBusiness || "",
 
       address: {
-        houseNumber: prospect.businessAddress?.houseNumber || "",
-        street: prospect.businessAddress?.streetAddress || "",
-        barangay: "",
-        municipality: prospect.businessAddress?.city || "",
-        province: prospect.businessAddress?.province || "",
-        zipCode: "",
-        country: prospect.businessAddress?.country || "Philippines",
+        houseNumber: addr.houseNumber || busAddr.houseNumber || "",
+        street: addr.street || busAddr.streetAddress || "",
+        barangay: addr.barangay || "",
+        municipality: addr.municipality || busAddr.city || "",
+        province: addr.province || busAddr.province || "",
+        zipCode: addr.zipCode || "",
+        country: addr.country || busAddr.country || "Philippines",
       },
 
       notes: prospect.notes || "",

@@ -35,13 +35,13 @@ router.get(
 
 // --- DITO NATIN NILAGAY ANG DROPDOWN PARA HINDI SIYA MAUNAHAN NG ANOMALOUS ROUTE PARAMETERS ---
 
-// GET all users for dropdown selection (Admin Only)
-router.get("/dropdown", requireRole("Admin"), async (req, res) => {
+// GET all users for dropdown selection (all authenticated users)
+router.get("/dropdown", async (req, res) => {
   try {
-    const users = await User.find({}, "employeeId firstName lastName role");
+    const users = await User.find({}, "employeeId firstName lastName role profilePicture");
     res.status(200).json(users);
-  } catch (err) { 
-    res.status(500).json({ error: err.message }); 
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
