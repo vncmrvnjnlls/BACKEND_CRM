@@ -41,7 +41,7 @@ const eventBus = require("../utils/eventBus");
 const events = require("../constants/events");
 
 const VALID_PRIORITIES = ["High", "Medium", "Low"];
-const VALID_STATUSES = ["Pending", "Ongoing", "Completed", "Overdue"];
+const VALID_STATUSES = ["Pending", "Ongoing", "Due Soon", "Completed", "Overdue"];
 
 const POPULATE_FIELDS = [
   {
@@ -194,7 +194,7 @@ const createTask = async (req, res) => {
       relatedToType,
       relatedTo,
       link,
-      linkName, // 🌟 Extracted linkName from request body
+      linkName,
     } = req.body;
 
     if (role === "Sales Agent" && assignedTo && assignedTo !== userId) {
@@ -222,7 +222,12 @@ const createTask = async (req, res) => {
       resolvedAssignedTo = null;
     }
 
-    const resolvedStatus = status || "Pending";
+    const resolvedStatus =
+      status === "To Do"
+        ? "Pending"
+        : status === "In Progress"
+          ? "Ongoing"
+          : status || "Pending";
 
     const lastTask = await Task.findOne({ status: resolvedStatus })
       .sort({ position: -1 })
@@ -297,6 +302,7 @@ const updateTaskDetails = async (req, res) => {
       description,
       taskType,
       priority,
+      status,
       dueDate,
       dueTime,
       reminderAt,
@@ -306,7 +312,7 @@ const updateTaskDetails = async (req, res) => {
       relatedToType,
       relatedTo,
       link,
-      linkName, // 🌟 Extracted linkName from request body
+      linkName,
     } = req.body;
 
     const updateData = {
@@ -314,14 +320,15 @@ const updateTaskDetails = async (req, res) => {
       description,
       taskType,
       priority,
+      status,
       dueDate: dueDate || null,
       dueTime: dueTime !== undefined ? dueTime : existing.dueTime,
       reminderAt: reminderAt || null,
       repeat,
       relatedToType: relatedToType || null,
       relatedTo: relatedTo || null,
-      link,
-      linkName: linkName !== undefined ? linkName : existing.linkName, // 🌟 Updated linkName field
+      link: link !== undefined ? link : existing.link,
+      linkName: linkName !== undefined ? linkName : existing.linkName,
     };
 
     const existingAttachments = normalizeExistingAttachments(
@@ -330,6 +337,8 @@ const updateTaskDetails = async (req, res) => {
     const newAttachments = buildTaskAttachments(req.files);
     if (existingAttachments.length > 0 || newAttachments.length > 0) {
       updateData.attachments = [...existingAttachments, ...newAttachments];
+    } else if (req.body.attachments !== undefined) {
+      updateData.attachments = existing.attachments || [];
     }
 
     if (assignedTo !== undefined) {
@@ -355,6 +364,10 @@ const updateTaskDetails = async (req, res) => {
         runValidators: true,
       })
     );
+
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
 
     eventBus.emit(events.TASK_UPDATED, {
       taskId: req.params.id,
