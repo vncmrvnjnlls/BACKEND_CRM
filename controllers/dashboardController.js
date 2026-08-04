@@ -462,16 +462,19 @@ const getLeadSourceData = async (req) => {
 // 🟢 PINAHUSAY: Helper para sa pagkuha ng scoped Meetings list (Safe version)
 const getMeetingsData = async (req) => {
   const { role, userId } = req.user;
+  const userObjectId = new mongoose.Types.ObjectId(userId);
   let meetingFilter = {};
 
-  // Nililimitahan ang makikitang meetings base sa role
-  if (role === "Sales Agent") {
-    // Tiyaking kung hindi 'assignedTo' ang user field sa Meeting mo, palitan ito (hal. host: userId)
-    meetingFilter = { 
+  if (["Sales Agent", "Support Staff"].includes(role)) {
+    meetingFilter = {
       $or: [
-        { assignedTo: new mongoose.Types.ObjectId(userId) },
-        { host: new mongoose.Types.ObjectId(userId) }
-      ]
+        { createdBy: userObjectId },
+        { participantIds: userObjectId },
+        { assignedTo: userObjectId },
+        { attendees: userObjectId },
+        { host: userId },
+        { host: userObjectId.toString() },
+      ],
     };
   } else if (role === "Sales Manager") {
     const agentIds = await getTeamAgentIdsForManager(userId);
@@ -481,9 +484,12 @@ const getMeetingsData = async (req) => {
 
     meetingFilter = {
       $or: [
+        { createdBy: { $in: allIds } },
+        { participantIds: { $in: allIds } },
         { assignedTo: { $in: allIds } },
-        { host: { $in: allIds } }
-      ]
+        { attendees: { $in: allIds } },
+        { host: { $in: [...allIds.map((id) => id.toString())] } },
+      ],
     };
   }
 
