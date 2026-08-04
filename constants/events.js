@@ -29,4 +29,9 @@ module.exports = {
 
   // Notifications
   NOTIFICATION_NEW: "notification:new",
+
+  // Meetings
+  MEETING_CREATED: "meeting.created",
+  MEETING_UPDATED: "meeting.updated",
+  MEETING_STATUS_CHANGED: "meeting.status.changed",
 };

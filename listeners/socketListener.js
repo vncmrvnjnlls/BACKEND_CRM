@@ -148,3 +148,35 @@ eventBus.on(events.TASK_STATUS_CHANGED, (data) => {
     newStatus: data.newStatus,
   });
 });
+
+// ---------------- MEETINGS ----------------
+
+eventBus.on(events.MEETING_CREATED, (data) => {
+  const io = getIO();
+  if (data.teamId) {
+    io.to(`team:${data.teamId}`).emit(events.MEETING_CREATED, { meetingId: data.meetingId });
+  }
+  if (Array.isArray(data.participantIds)) {
+    data.participantIds.forEach((participantId) => {
+      io.to(`user:${participantId}`).emit(events.MEETING_CREATED, { meetingId: data.meetingId });
+    });
+  }
+  if (data.createdBy) {
+    io.to(`user:${data.createdBy}`).emit(events.MEETING_CREATED, { meetingId: data.meetingId });
+  }
+});
+
+eventBus.on(events.MEETING_UPDATED, (data) => {
+  const io = getIO();
+  if (data.teamId) {
+    io.to(`team:${data.teamId}`).emit(events.MEETING_UPDATED, { meetingId: data.meetingId });
+  }
+  if (Array.isArray(data.participantIds)) {
+    data.participantIds.forEach((participantId) => {
+      io.to(`user:${participantId}`).emit(events.MEETING_UPDATED, { meetingId: data.meetingId });
+    });
+  }
+  if (data.createdBy) {
+    io.to(`user:${data.createdBy}`).emit(events.MEETING_UPDATED, { meetingId: data.meetingId });
+  }
+});
