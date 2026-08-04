@@ -82,6 +82,67 @@ const getLeadNameFromProspect = (prospect) => {
   };
 };
 
+const normalizeProspectPayload = (reqBody = {}) => {
+  const representative = reqBody.representativeName || {};
+  const owner = reqBody.ownerName || {};
+  const rawAddress = reqBody.address || reqBody.businessAddress || {};
+  const companyName = reqBody.companyName || reqBody.company || "";
+  const companyEmailAddress = reqBody.companyEmailAddress || reqBody.companyEmail || reqBody.emailAddress || reqBody.email || "";
+  const companyWebsite = reqBody.companyWebsite || "";
+  const natureOfBusiness = reqBody.natureOfBusiness || reqBody.industry || "";
+  const emailAddress = reqBody.emailAddress || reqBody.email || companyEmailAddress || "";
+  const phone = reqBody.phone || "";
+  const firstName = reqBody.firstName || representative.firstName || "";
+  const middleName = reqBody.middleName || representative.middleName || representative.middleInitial || "";
+  const lastName = reqBody.lastName || representative.lastName || "";
+
+  return {
+    companyName,
+    companyEmailAddress,
+    companyWebsite,
+    natureOfBusiness,
+    numberOfEmployees: reqBody.numberOfEmployees || "",
+    ownerName: {
+      firstName: owner.firstName || "",
+      middleName: owner.middleName || owner.middleInitial || "",
+      middleInitial: owner.middleName || owner.middleInitial || "",
+      lastName: owner.lastName || "",
+    },
+    representativeName: {
+      firstName: representative.firstName || firstName || "",
+      middleName: representative.middleName || representative.middleInitial || middleName || "",
+      middleInitial: representative.middleName || representative.middleInitial || middleName || "",
+      lastName: representative.lastName || lastName || "",
+      suffixName: representative.suffixName || "",
+      birthday: representative.birthday || reqBody.birthday || "",
+      gender: representative.gender || reqBody.gender || "",
+    },
+    title: reqBody.title || "",
+    emailAddress,
+    viber: reqBody.viber || "",
+    phone,
+    businessAddress: {
+      houseNumber: rawAddress.houseNumber || reqBody.houseNumber || "",
+      streetAddress: rawAddress.streetAddress || rawAddress.street || "",
+      city: rawAddress.city || rawAddress.municipality || "",
+      province: rawAddress.province || "",
+      country: rawAddress.country || reqBody.country || "Philippines",
+    },
+    address: {
+      country: rawAddress.country || reqBody.country || "Philippines",
+      province: rawAddress.province || reqBody.province || "",
+      municipality: rawAddress.municipality || rawAddress.city || reqBody.city || "",
+      barangay: rawAddress.barangay || rawAddress.district || reqBody.barangay || "",
+      street: rawAddress.street || rawAddress.streetAddress || reqBody.street || "",
+      houseNumber: rawAddress.houseNumber || reqBody.houseNumber || "",
+      zipCode: rawAddress.zipCode || reqBody.zipCode || "",
+    },
+    status: reqBody.status || "New",
+    leadSource: reqBody.leadSource || "Website",
+    notes: reqBody.notes || "",
+  };
+};
+
 const getProspects = async (req, res) => {
   try {
     const prospects = await Prospect.find()
@@ -110,39 +171,12 @@ const createProspect = async (req, res) => {
       userId = await getFallbackUserId();
     }
 
-    const rawAddress = req.body.address || {};
+    const payload = normalizeProspectPayload(req.body);
 
-    const payload = {
-      companyName: req.body.companyName,
-      businessAddress: req.body.businessAddress,
-      companyEmailAddress: req.body.companyEmailAddress,
-      companyWebsite: req.body.companyWebsite,
-      natureOfBusiness: req.body.natureOfBusiness,
-      numberOfEmployees: req.body.numberOfEmployees,
-
-      ownerName: req.body.ownerName,
-      representativeName: req.body.representativeName,
-      title: req.body.title,
-      emailAddress: cleanEmptyString(req.body.emailAddress),
-      viber: req.body.viber,
-      phone: req.body.phone,
-
-      // 🌟 ADDED ADDRESS FIELD FROM THE FRONTEND FORM
-      address: {
-        country: rawAddress.country || "Philippines",
-        province: rawAddress.province || "",
-        municipality: rawAddress.municipality || rawAddress.city || "",
-        barangay: rawAddress.barangay || rawAddress.district || "",
-        street: rawAddress.street || "",
-        houseNumber: rawAddress.houseNumber || "",
-        zipCode: rawAddress.zipCode || "",
-      },
-
-      status: req.body.status || "New",
-      leadSource: req.body.leadSource || "Website",
-      notes: req.body.notes,
-      createdBy: userId,
-    };
+    payload.companyEmailAddress = cleanEmptyString(payload.companyEmailAddress) || undefined;
+    payload.emailAddress = cleanEmptyString(payload.emailAddress) || undefined;
+    payload.phone = cleanEmptyString(payload.phone);
+    payload.createdBy = userId;
 
     const prospect = await Prospect.create(payload);
 
@@ -185,19 +219,11 @@ const updateProspect = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const payload = {
-      ...req.body,
-      emailAddress: cleanEmptyString(req.body.emailAddress),
-    };
+    const payload = normalizeProspectPayload(req.body);
 
-    // If address is being updated, balance city/municipality naming
-    if (req.body.address) {
-      payload.address = {
-        ...req.body.address,
-        municipality: req.body.address.municipality || req.body.address.city || "",
-        barangay: req.body.address.barangay || req.body.address.district || "",
-      };
-    }
+    payload.companyEmailAddress = cleanEmptyString(payload.companyEmailAddress) || undefined;
+    payload.emailAddress = cleanEmptyString(payload.emailAddress) || undefined;
+    payload.phone = cleanEmptyString(payload.phone);
 
     const prospect = await Prospect.findByIdAndUpdate(id, payload, {
       new: true,

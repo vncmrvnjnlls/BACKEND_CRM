@@ -24,6 +24,11 @@ const communicationSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     deletedBy: {
       type: [mongoose.Schema.Types.ObjectId],
       ref: "User",

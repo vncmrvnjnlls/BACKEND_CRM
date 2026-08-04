@@ -212,30 +212,31 @@ const createLead = async (req, res) => {
     const role = req.user.role;
     const userId = req.user.userId;
 
-    const {
-      firstName,
-      middleName,
-      lastName,
-      suffixName,
-      email,
-      phone,
-      dateOfBirth,
-      company,
-      leadSource,
-      status,
-      industry,
-      sex,
-      notes,
-    } = req.body;
+    const representative = req.body.representativeName || {};
+    const owner = req.body.ownerName || {};
+
+    const firstName = req.body.firstName || representative.firstName || owner.firstName || "";
+    const middleName = req.body.middleName || representative.middleName || representative.middleInitial || owner.middleName || owner.middleInitial || "";
+    const lastName = req.body.lastName || representative.lastName || owner.lastName || "";
+    const suffixName = req.body.suffixName || representative.suffixName || "";
+    const email = req.body.email || req.body.emailAddress || req.body.companyEmailAddress || "";
+    const phone = req.body.phone || "";
+    const dateOfBirth = req.body.dateOfBirth || representative.birthday || req.body.birthday || null;
+    const company = req.body.company || req.body.companyName || "";
+    const leadSource = req.body.leadSource || "Website";
+    const status = req.body.status || "New";
+    const industry = req.body.industry || req.body.natureOfBusiness || "";
+    const sex = req.body.sex || representative.gender || req.body.gender || "";
+    const notes = req.body.notes || "";
 
     const address = {
-      houseNumber: req.body["address.houseNumber"],
-      street: req.body["address.street"],
-      barangay: req.body["address.barangay"],
-      municipality: req.body["address.municipality"],
-      province: req.body["address.province"],
-      zipCode: req.body["address.zipCode"],
-      country: req.body["address.country"],
+      houseNumber: req.body["address.houseNumber"] || req.body.houseNumber || "",
+      street: req.body["address.street"] || req.body.street || "",
+      barangay: req.body["address.barangay"] || req.body.barangay || "",
+      municipality: req.body["address.municipality"] || req.body.city || req.body.municipality || "",
+      province: req.body["address.province"] || req.body.province || "",
+      zipCode: req.body["address.zipCode"] || req.body.zipCode || "",
+      country: req.body["address.country"] || req.body.country || "Philippines",
     };
 
     if (!firstName || !lastName || !phone) {
@@ -373,28 +374,31 @@ const updateLeadDetails = async (req, res) => {
     // Capture old assignee before update for event comparison
     const previousAssignee = existing.leadAssignee?.toString() ?? null;
 
+    const representative = req.body.representativeName || {};
+    const owner = req.body.ownerName || {};
+
     const updateData = {
-      firstName: req.body.firstName,
-      middleName: req.body.middleName,
-      lastName: req.body.lastName,
-      suffixName: req.body.suffixName,
-      email: req.body.email,
+      firstName: req.body.firstName || representative.firstName || owner.firstName,
+      middleName: req.body.middleName || representative.middleName || representative.middleInitial || owner.middleName || owner.middleInitial,
+      lastName: req.body.lastName || representative.lastName || owner.lastName,
+      suffixName: req.body.suffixName || representative.suffixName,
+      email: req.body.email || req.body.emailAddress || req.body.companyEmailAddress,
       phone: req.body.phone,
-      dateOfBirth: req.body.dateOfBirth,
-      company: req.body.company,
+      dateOfBirth: req.body.dateOfBirth || representative.birthday || req.body.birthday,
+      company: req.body.company || req.body.companyName,
       leadSource: req.body.leadSource,
       status: req.body.status,
-      industry: req.body.industry,
-      sex: req.body.sex,
+      industry: req.body.industry || req.body.natureOfBusiness,
+      sex: req.body.sex || representative.gender || req.body.gender,
       notes: req.body.notes,
       address: {
-        houseNumber: req.body["address.houseNumber"],
-        street: req.body["address.street"],
-        barangay: req.body["address.barangay"],
-        municipality: req.body["address.municipality"],
-        province: req.body["address.province"],
-        zipCode: req.body["address.zipCode"],
-        country: req.body["address.country"],
+        houseNumber: req.body["address.houseNumber"] || req.body.houseNumber,
+        street: req.body["address.street"] || req.body.street,
+        barangay: req.body["address.barangay"] || req.body.barangay,
+        municipality: req.body["address.municipality"] || req.body.city || req.body.municipality,
+        province: req.body["address.province"] || req.body.province,
+        zipCode: req.body["address.zipCode"] || req.body.zipCode,
+        country: req.body["address.country"] || req.body.country,
       },
     };
 
@@ -486,27 +490,29 @@ const updateOwnLeadDetails = async (req, res) => {
       return res.status(400).json({ error: "Cannot edit a converted lead" });
     }
 
+    const representative = req.body.representativeName || {};
+
     const updateData = {
-      firstName: req.body.firstName,
-      middleName: req.body.middleName,
-      lastName: req.body.lastName,
-      suffixName: req.body.suffixName,
-      email: req.body.email,
+      firstName: req.body.firstName || representative.firstName,
+      middleName: req.body.middleName || representative.middleName || representative.middleInitial,
+      lastName: req.body.lastName || representative.lastName,
+      suffixName: req.body.suffixName || representative.suffixName,
+      email: req.body.email || req.body.emailAddress || req.body.companyEmailAddress,
       phone: req.body.phone,
-      dateOfBirth: req.body.dateOfBirth,
-      company: req.body.company,
+      dateOfBirth: req.body.dateOfBirth || representative.birthday || req.body.birthday,
+      company: req.body.company || req.body.companyName,
       leadSource: req.body.leadSource,
-      industry: req.body.industry,
-      sex: req.body.sex,
+      industry: req.body.industry || req.body.natureOfBusiness,
+      sex: req.body.sex || representative.gender || req.body.gender,
       notes: req.body.notes,
       address: {
-        houseNumber: req.body["address.houseNumber"],
-        street: req.body["address.street"],
-        barangay: req.body["address.barangay"],
-        municipality: req.body["address.municipality"],
-        province: req.body["address.province"],
-        zipCode: req.body["address.zipCode"],
-        country: req.body["address.country"],
+        houseNumber: req.body["address.houseNumber"] || req.body.houseNumber,
+        street: req.body["address.street"] || req.body.street,
+        barangay: req.body["address.barangay"] || req.body.barangay,
+        municipality: req.body["address.municipality"] || req.body.city || req.body.municipality,
+        province: req.body["address.province"] || req.body.province,
+        zipCode: req.body["address.zipCode"] || req.body.zipCode,
+        country: req.body["address.country"] || req.body.country,
       },
     };
 
