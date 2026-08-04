@@ -1,7 +1,15 @@
 const Meeting = require("../models/Meeting");
 const mongoose = require("mongoose");
+const eventBus = require("../utils/eventBus");
+const events = require("../constants/events");
 // Kung may helper ka para sa team agents ng manager, i-require mo rito (halimbawa):
 // const { getTeamAgentIdsForManager } = require("./dashboardController"); 
+
+const normalizeIds = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  return [value];
+};
 
 // @desc    Get all meetings (Role-Based Scoping para sa Calendar)
 // @route   GET /api/meetings
@@ -10,32 +18,42 @@ const getAllMeetings = async (req, res) => {
     const { role, _id: userId } = req.user; // Tiyaking tama ang property base sa authMiddleware mo (_id o id)
     let filter = {};
 
-    // 🟢 KOPYAHIN ANG LOGIC MULA SA DASHBOARD PARA PAREHO ANG BILANG
     if (role === "Sales Agent") {
       filter = {
         $or: [
           { createdBy: new mongoose.Types.ObjectId(userId) },
+          { participantIds: new mongoose.Types.ObjectId(userId) },
           { assignedTo: new mongoose.Types.ObjectId(userId) },
-          { host: new mongoose.Types.ObjectId(userId) }
-        ]
+          { attendees: new mongoose.Types.ObjectId(userId) },
+        ],
       };
     } else if (role === "Sales Manager") {
       // Kung may manager scoping ka, kunin ang agentIds. Kung wala pa, makikita muna ang sa kanya at gawa niya:
       filter = {
         $or: [
           { createdBy: new mongoose.Types.ObjectId(userId) },
+          { participantIds: new mongoose.Types.ObjectId(userId) },
           { assignedTo: new mongoose.Types.ObjectId(userId) },
-          { host: new mongoose.Types.ObjectId(userId) }
-        ]
+          { attendees: new mongoose.Types.ObjectId(userId) },
+        ],
       };
     } else if (["Super Admin", "Admin"].includes(role)) {
-      // Ang Admin ay walang filter para makita ang lahat ng 5 meetings sa system!
+      // Ang Admin ay walang filter para makita ang lahat ng meetings sa system.
       filter = {};
+    } else {
+      // Other roles should still only see meetings they are involved in.
+      filter = {
+        $or: [
+          { createdBy: new mongoose.Types.ObjectId(userId) },
+          { participantIds: new mongoose.Types.ObjectId(userId) },
+          { assignedTo: new mongoose.Types.ObjectId(userId) },
+          { attendees: new mongoose.Types.ObjectId(userId) },
+        ],
+      };
     }
 
-    // 🟢 Ginamit ang 'dateTime' para sa tamang sorting ng timeline scheduler natin
     const meetings = await Meeting.find(filter)
-      .sort({ dateTime: 1 })
+      .sort({ date: 1, startTime: 1 })
       .populate({ path: "relatedToClient", select: "firstName lastName companyName", options: { strictPopulate: false } })
       .lean();
 
@@ -49,13 +67,25 @@ const getAllMeetings = async (req, res) => {
 // @route   POST /api/meetings
 const createMeeting = async (req, res) => {
   try {
-    // Awtomatikong isasabit ang req.user._id mula sa inyong protect middleware
     const meetingData = {
       ...req.body,
       createdBy: req.user._id,
+      participantIds: normalizeIds(req.body.participantIds),
+      assignedTo: normalizeIds(req.body.assignedTo),
+      attendees: normalizeIds(req.body.attendees),
     };
 
     const newMeeting = await Meeting.create(meetingData);
+
+    eventBus.emit(events.MEETING_CREATED, {
+      meetingId: newMeeting._id,
+      createdBy: req.user._id,
+      participantIds: newMeeting.participantIds || [],
+      assignedTo: newMeeting.assignedTo || [],
+      attendees: newMeeting.attendees || [],
+      teamId: req.user.teamId,
+    });
+
     res.status(201).json(newMeeting);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -72,7 +102,12 @@ const updateMeeting = async (req, res) => {
 
     const updatedMeeting = await Meeting.findByIdAndUpdate(
       id,
-      req.body,
+      {
+        ...req.body,
+        participantIds: normalizeIds(req.body.participantIds),
+        assignedTo: normalizeIds(req.body.assignedTo),
+        attendees: normalizeIds(req.body.attendees),
+      },
       { new: true, runValidators: true }
     ).populate({
       path: "createdBy",
@@ -83,6 +118,15 @@ const updateMeeting = async (req, res) => {
     if (!updatedMeeting) {
       return res.status(404).json({ error: "Meeting not found" });
     }
+
+    eventBus.emit(events.MEETING_UPDATED, {
+      meetingId: updatedMeeting._id,
+      createdBy: updatedMeeting.createdBy?._id || updatedMeeting.createdBy,
+      participantIds: updatedMeeting.participantIds || [],
+      assignedTo: updatedMeeting.assignedTo || [],
+      attendees: updatedMeeting.attendees || [],
+      teamId: req.user.teamId,
+    });
 
     res.status(200).json(updatedMeeting);
   } catch (error) {

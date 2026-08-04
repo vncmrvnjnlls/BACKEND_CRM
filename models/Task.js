@@ -34,7 +34,7 @@ const taskSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Pending", "Ongoing", "Completed", "Overdue"],
+      enum: ["Pending", "Ongoing", "Due Soon", "Completed", "Overdue"],
       default: "Pending",
     },
 

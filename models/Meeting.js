@@ -58,6 +58,21 @@ const meetingSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    participantIds: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "User",
+      default: [],
+    },
+    assignedTo: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "User",
+      default: [],
+    },
+    attendees: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "User",
+      default: [],
+    },
     notes: {
       type: String,
       trim: true,
