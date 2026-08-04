@@ -121,6 +121,10 @@ const prospectSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    handlingOfficer: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -132,26 +136,3 @@ const prospectSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model("Prospect", prospectSchema);
-
-
-// const mongoose = require('mongoose');
-
-// const prospectSchema = new mongoose.Schema({
-//   firstName: { type: String, required: true },
-//   lastName: { type: String, required: true },
-//   company: { type: String },
-//   email: { type: String, required: true },
-//   phone: { type: String },
-//   notes: { type: String },
-//   status: { type: String, default: "New" },
-//   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  
-//   // 👈 DITO MO ISINGIT YUNG ADDRESS FIELD BLOCK
-//   address: {
-//     zipCode: { type: String },
-//     province: { type: String },
-//     municipality: { type: String }
-//   }
-// }, { timestamps: true });
-
-// module.exports = mongoose.model('Prospect', prospectSchema);

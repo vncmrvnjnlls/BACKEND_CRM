@@ -140,14 +140,16 @@ const normalizeProspectPayload = (reqBody = {}) => {
     status: reqBody.status || "New",
     leadSource: reqBody.leadSource || "Website",
     notes: reqBody.notes || "",
+    handlingOfficer: reqBody.handlingOfficer || null,
   };
 };
 
 const getProspects = async (req, res) => {
   try {
     const prospects = await Prospect.find()
-      .populate("createdBy", "firstName lastName email role")
-      .sort({ createdAt: -1 });
+    .populate("createdBy", "firstName lastName email role")
+    .populate("handlingOfficer", "firstName lastName email role")
+    .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
