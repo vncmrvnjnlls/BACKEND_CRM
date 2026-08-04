@@ -151,15 +151,22 @@ const deleteCommunication = async (req, res) => {
 
     if (!alreadyDeleted) {
       communication.deletedBy = [...deletedBy, senderId];
-      await communication.save();
     }
+
+    communication.isDeleted = true;
+    await communication.save();
 
     const io = getIO();
     io.to(`user:${communication.recipient}`).emit("communication:deleted", {
       communicationId,
       deletedBy: senderId,
+      isDeleted: true,
     });
-    io.to(`user:${senderId}`).emit("communication:deleted", { communicationId, deletedBy: senderId });
+    io.to(`user:${senderId}`).emit("communication:deleted", {
+      communicationId,
+      deletedBy: senderId,
+      isDeleted: true,
+    });
 
     res.status(200).json({ message: "Message deleted successfully.", communicationId });
   } catch (error) {
