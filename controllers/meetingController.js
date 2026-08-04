@@ -15,39 +15,37 @@ const normalizeIds = (value) => {
 // @route   GET /api/meetings
 const getAllMeetings = async (req, res) => {
   try {
-    const { role, _id: userId } = req.user; // Tiyaking tama ang property base sa authMiddleware mo (_id o id)
+    const { role, _id: userId } = req.user;
+    const userObjectId = new mongoose.Types.ObjectId(userId);
     let filter = {};
 
-    if (role === "Sales Agent") {
+    if (["Sales Agent", "Support Staff"].includes(role)) {
       filter = {
         $or: [
-          { createdBy: new mongoose.Types.ObjectId(userId) },
-          { participantIds: new mongoose.Types.ObjectId(userId) },
-          { assignedTo: new mongoose.Types.ObjectId(userId) },
-          { attendees: new mongoose.Types.ObjectId(userId) },
+          { createdBy: userObjectId },
+          { participantIds: userObjectId },
+          { assignedTo: userObjectId },
+          { attendees: userObjectId },
         ],
       };
     } else if (role === "Sales Manager") {
-      // Kung may manager scoping ka, kunin ang agentIds. Kung wala pa, makikita muna ang sa kanya at gawa niya:
       filter = {
         $or: [
-          { createdBy: new mongoose.Types.ObjectId(userId) },
-          { participantIds: new mongoose.Types.ObjectId(userId) },
-          { assignedTo: new mongoose.Types.ObjectId(userId) },
-          { attendees: new mongoose.Types.ObjectId(userId) },
+          { createdBy: userObjectId },
+          { participantIds: userObjectId },
+          { assignedTo: userObjectId },
+          { attendees: userObjectId },
         ],
       };
     } else if (["Super Admin", "Admin"].includes(role)) {
-      // Ang Admin ay walang filter para makita ang lahat ng meetings sa system.
       filter = {};
     } else {
-      // Other roles should still only see meetings they are involved in.
       filter = {
         $or: [
-          { createdBy: new mongoose.Types.ObjectId(userId) },
-          { participantIds: new mongoose.Types.ObjectId(userId) },
-          { assignedTo: new mongoose.Types.ObjectId(userId) },
-          { attendees: new mongoose.Types.ObjectId(userId) },
+          { createdBy: userObjectId },
+          { participantIds: userObjectId },
+          { assignedTo: userObjectId },
+          { attendees: userObjectId },
         ],
       };
     }
