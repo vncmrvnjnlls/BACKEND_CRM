@@ -81,44 +81,6 @@ const prospectSchema = new mongoose.Schema(
         trim: true,
       },
       barangay: {
-        type: String, 
-        required: false,
-        trim: true,
-      },
-      street: {
-        type: String,
-        required: false,
-        trim: true,
-      },
-      houseNumber: {
-        type: String,
-        required: false,
-        trim: true,
-      },
-      zipCode: {
-        type: String,
-        required: [true, "Zip Code is required"],
-        trim: true,
-      },
-    },
-    address: {
-      country: {
-        type: String,
-        required: [true, "Country is required"],
-        default: "Philippines",
-        trim: true,
-      },
-      province: {
-        type: String,
-        required: [true, "Province is required"],
-        trim: true,
-      },
-      municipality: {
-        type: String, 
-        required: [true, "City / Municipality is required"],
-        trim: true,
-      },
-      barangay: {
         type: String,
         required: false,
         trim: true,
