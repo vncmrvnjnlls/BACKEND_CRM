@@ -4,7 +4,7 @@ const activitySchema = new mongoose.Schema(
   {
     relatedToType: {
       type: String,
-      enum: ["Lead", "Client", "Quotations", "Task"],
+      enum: ["Lead", "Client", "Quotation", "Task", "Call"],
       required: true,
     },
     relatedToId: {
