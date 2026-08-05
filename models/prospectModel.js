@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 
 const prospectSchema = new mongoose.Schema(
   {
-    // === COMPANY PROFILE ===
     companyName: {
       type: String,
       required: [true, "Company Name is required"],
@@ -34,8 +33,6 @@ const prospectSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-
-    // === OWNER/S OR REPRESENTATIVE/S INFORMATION ===
     ownerName: {
       lastName: { type: String, trim: true },
       firstName: { type: String, trim: true },
@@ -66,8 +63,6 @@ const prospectSchema = new mongoose.Schema(
       required: [true, "Contact Phone Number is required"],
       trim: true,
     },
-
-    // 🌟 ADDRESS INFORMATION (Matching the UI Form)
     address: {
       country: {
         type: String,
@@ -81,12 +76,12 @@ const prospectSchema = new mongoose.Schema(
         trim: true,
       },
       municipality: {
-        type: String, // Accepts City / Municipality
+        type: String, 
         required: [true, "City / Municipality is required"],
         trim: true,
       },
       barangay: {
-        type: String, // Accepts Barangay / District
+        type: String, 
         required: false,
         trim: true,
       },
@@ -106,8 +101,49 @@ const prospectSchema = new mongoose.Schema(
         trim: true,
       },
     },
-
-    // === CRM INTERNAL SYSTEM FIELDS ===
+    address: {
+      country: {
+        type: String,
+        required: [true, "Country is required"],
+        default: "Philippines",
+        trim: true,
+      },
+      province: {
+        type: String,
+        required: [true, "Province is required"],
+        trim: true,
+      },
+      municipality: {
+        type: String, 
+        required: [true, "City / Municipality is required"],
+        trim: true,
+      },
+      barangay: {
+        type: String,
+        required: false,
+        trim: true,
+      },
+      street: {
+        type: String,
+        required: false,
+        trim: true,
+      },
+      houseNumber: {
+        type: String,
+        required: false,
+        trim: true,
+      },
+      zipCode: {
+        type: String,
+        required: [true, "Zip Code is required"],
+        trim: true,
+      },
+      regionCode: { type: String, trim: true },
+      provinceCode: { type: String, trim: true },
+      municipalityCode: { type: String, trim: true },
+      barangayCode: { type: String, trim: true },
+      isNCRCity: { type: Boolean, default: false },
+    },
     status: {
       type: String,
       enum: ["New", "Contacted", "Qualified", "Lost"],
