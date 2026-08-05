@@ -280,3 +280,24 @@ eventBus.on(events.CALL_STATUS_CHANGED, (data) => {
     userId: data.userId,
   });
 });
+
+eventBus.on(events.CALL_COMPLETED, (data) => {
+  createActivity({
+    relatedToType: "Call",
+    relatedToId: data.callId,
+    action: ACTIONS.STATUS_CHANGE,
+    title: "Call Completed",
+    metadata: { oldValue: data.oldStatus, newValue: "Completed" },
+    userId: data.userId,
+  });
+});
+
+eventBus.on(events.CALL_DELETED, (data) => {
+  createActivity({
+    relatedToType: "Call",
+    relatedToId: data.callId,
+    action: ACTIONS.DELETE,
+    title: "Call Deleted",
+    userId: data.userId,
+  });
+});

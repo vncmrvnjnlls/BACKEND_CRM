@@ -31,6 +31,8 @@ module.exports = {
   CALL_CREATED: "call.created",
   CALL_UPDATED: "call.updated",
   CALL_STATUS_CHANGED: "call.status.changed",
+  CALL_COMPLETED: "call.completed",
+  CALL_DELETED: "call.deleted",
 
   // Notifications
   NOTIFICATION_NEW: "notification:new",
