@@ -17,16 +17,30 @@ const getAllCalls = async (req, res) => {
 // 2. CREATE NEW CALL (Removed client populate from return object)
 const createCall = async (req, res) => {
   try {
-    const { client, company, contactNumber, callType, schedule, status, notes, assignedTo } = req.body;
+    const {
+      client,
+      company,
+      contactMethod,
+      contactNumber,
+      callType,
+      schedule,
+      status,
+      completedAt,
+      notes,
+      assignedTo,
+    } = req.body;
     const userId = req.user.userId;
 
     const newCall = await Call.create({
       client, // This will now accept your typed string directly (e.g., "Juan Dela Cruz")
       company,
+      contactMethod: contactMethod || "Mobile",
       contactNumber,
       callType,
       schedule,
       status: status || "Scheduled",
+      completedAt:
+        status === "Completed" ? completedAt || new Date() : null,
       notes,
       assignedTo: assignedTo || userId,
       createdBy: userId,
@@ -53,36 +67,53 @@ const updateCall = async (req, res) => {
     const { id } = req.params;
 
     // Destructure natin LAHAT ng pwedeng i-update galing frontend/postman body
-    const { 
-      client, 
-      company, 
-      contactNumber, 
-      callType, 
-      schedule, 
-      status, 
-      notes 
+    const existingCall = await Call.findById(id);
+    if (!existingCall) {
+      return res.status(404).json({ error: "Call not found" });
+    }
+
+    const {
+      client,
+      company,
+      contactMethod,
+      contactNumber,
+      callType,
+      schedule,
+      status,
+      completedAt,
+      notes,
+      assignedTo,
     } = req.body;
+    const resolvedStatus = status || existingCall.status;
+    const resolvedCompletedAt =
+      resolvedStatus === "Completed"
+        ? completedAt || existingCall.completedAt || new Date()
+        : null;
 
     // Hanapin ang record at i-update gamit ang mga bagong values
     const updatedCall = await Call.findByIdAndUpdate(
       id,
       {
-        client,
-        company,
-        contactNumber,
-        callType,
-        schedule,
-        status,
-        notes
+        client: client ?? existingCall.client,
+        company: company ?? existingCall.company,
+        contactMethod: contactMethod ?? existingCall.contactMethod,
+        contactNumber: contactNumber ?? existingCall.contactNumber,
+        callType: callType ?? existingCall.callType,
+        schedule: schedule ?? existingCall.schedule,
+        status: resolvedStatus,
+        completedAt: resolvedCompletedAt,
+        notes: notes ?? existingCall.notes,
+        assignedTo: assignedTo ?? existingCall.assignedTo,
       },
       { new: true, runValidators: true } // { new: true } para ibalik ang pinakabagong data sa response
     );
 
-    if (!updatedCall) {
-      return res.status(404).json({ error: "Call not found" });
-    }
+    const populatedCall = await updatedCall.populate(
+      "assignedTo",
+      "firstName lastName",
+    );
 
-    res.status(200).json(updatedCall);
+    res.status(200).json(populatedCall);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

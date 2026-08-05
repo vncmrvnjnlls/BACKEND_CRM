@@ -37,6 +37,10 @@ const CallSchema = new mongoose.Schema(
       enum: ["Scheduled", "Completed", "Missed", "Cancelled"],
       default: "Scheduled",
     },
+    completedAt: {
+      type: Date,
+      default: null,
+    },
     notes: {
       type: String,
       trim: true,
