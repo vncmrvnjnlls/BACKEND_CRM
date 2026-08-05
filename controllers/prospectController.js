@@ -254,10 +254,14 @@ const updateProspect = async (req, res) => {
     payload.emailAddress = cleanEmptyString(payload.emailAddress) || undefined;
     payload.phone = cleanEmptyString(payload.phone);
 
-    const prospect = await Prospect.findByIdAndUpdate(id, payload, {
+    let prospect = await Prospect.findByIdAndUpdate(id, payload, {
       new: true,
       runValidators: true,
     });
+    
+    prospect = await Prospect.findById(prospect._id)
+      .populate("createdBy", "firstName lastName email role profilePicture avatar")
+      .populate("handlingOfficer", "firstName lastName email role profilePicture avatar");
 
     if (!prospect) {
       return res.status(404).json({
