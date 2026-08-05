@@ -1,6 +1,7 @@
 const Prospect = require("../models/prospectModel");
 const Lead = require("../models/Lead");
 const User = require("../models/User");
+const Activity = require("../models/Activity"); // <-- Added Activity model import
 
 const cleanEmptyString = (value) => {
   if (value === "") return undefined;
@@ -209,6 +210,18 @@ const createProspect = async (req, res) => {
 
     const prospect = await Prospect.create(payload);
 
+    // --- LOG CREATE ACTIVITY ---
+    if (userId) {
+      await Activity.create({
+        relatedToType: "Prospect",
+        relatedToId: prospect._id,
+        action: "CREATE",
+        title: "created this prospect",
+        createdBy: userId,
+        activityDate: new Date(),
+      }).catch((err) => console.error("Activity create error:", err));
+    }
+
     res.status(201).json({
       success: true,
       message: "Prospect created successfully",
@@ -258,16 +271,33 @@ const updateProspect = async (req, res) => {
       new: true,
       runValidators: true,
     });
-    
-    prospect = await Prospect.findById(prospect._id)
-      .populate("createdBy", "firstName lastName email role profilePicture avatar")
-      .populate("handlingOfficer", "firstName lastName email role profilePicture avatar");
 
     if (!prospect) {
       return res.status(404).json({
         success: false,
         message: "Prospect not found",
       });
+    }
+
+    prospect = await Prospect.findById(prospect._id)
+      .populate("createdBy", "firstName lastName email role profilePicture avatar")
+      .populate("handlingOfficer", "firstName lastName email role profilePicture avatar");
+
+    // --- LOG UPDATE ACTIVITY ---
+    let userId = getUserId(req, prospect);
+    if (!userId) {
+      userId = await getFallbackUserId();
+    }
+
+    if (userId) {
+      await Activity.create({
+        relatedToType: "Prospect",
+        relatedToId: prospect._id,
+        action: "UPDATE",
+        title: "updated prospect details",
+        createdBy: userId,
+        activityDate: new Date(),
+      }).catch((err) => console.error("Activity update error:", err));
     }
 
     res.status(200).json({
