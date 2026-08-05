@@ -27,6 +27,11 @@ module.exports = {
   TASK_STATUS_CHANGED: "task.status.changed",
   TASK_PRIORITY_CHANGED: "task.priority.changed",
 
+  // Calls
+  CALL_CREATED: "call.created",
+  CALL_UPDATED: "call.updated",
+  CALL_STATUS_CHANGED: "call.status.changed",
+
   // Notifications
   NOTIFICATION_NEW: "notification:new",
 

@@ -1,4 +1,6 @@
 const Call = require("../models/Call");
+const eventBus = require("../utils/eventBus");
+const events = require("../constants/events");
 
 // 1. GET ALL CALLS (Removed client populate)
 const getAllCalls = async (req, res) => {
@@ -48,6 +50,12 @@ const createCall = async (req, res) => {
 
     const populatedCall = await Call.findById(newCall._id)
       .populate("assignedTo", "firstName lastName");
+
+    eventBus.emit(events.CALL_CREATED, {
+      callId: newCall._id,
+      status: newCall.status,
+      userId,
+    });
 
     res.status(201).json(populatedCall);
   } catch (error) {
@@ -112,6 +120,21 @@ const updateCall = async (req, res) => {
       "assignedTo",
       "firstName lastName",
     );
+
+    const userId = req.user.userId;
+    if (existingCall.status !== updatedCall.status) {
+      eventBus.emit(events.CALL_STATUS_CHANGED, {
+        callId: updatedCall._id,
+        oldStatus: existingCall.status,
+        newStatus: updatedCall.status,
+        userId,
+      });
+    } else {
+      eventBus.emit(events.CALL_UPDATED, {
+        callId: updatedCall._id,
+        userId,
+      });
+    }
 
     res.status(200).json(populatedCall);
   } catch (error) {
