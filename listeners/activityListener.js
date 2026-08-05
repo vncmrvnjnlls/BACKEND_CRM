@@ -246,3 +246,58 @@ eventBus.on(events.TASK_PRIORITY_CHANGED, (data) => {
     userId: data.userId,
   });
 });
+
+// ---------------- CALLS ----------------
+
+eventBus.on(events.CALL_CREATED, (data) => {
+  createActivity({
+    relatedToType: "Call",
+    relatedToId: data.callId,
+    action: ACTIONS.CREATE,
+    title: "Call Created",
+    description: `Call created with status ${data.status}`,
+    userId: data.userId,
+  });
+});
+
+eventBus.on(events.CALL_UPDATED, (data) => {
+  createActivity({
+    relatedToType: "Call",
+    relatedToId: data.callId,
+    action: ACTIONS.UPDATE,
+    title: "Call Updated",
+    userId: data.userId,
+  });
+});
+
+eventBus.on(events.CALL_STATUS_CHANGED, (data) => {
+  createActivity({
+    relatedToType: "Call",
+    relatedToId: data.callId,
+    action: ACTIONS.STATUS_CHANGE,
+    title: `Status changed to ${data.newStatus}`,
+    metadata: { oldValue: data.oldStatus, newValue: data.newStatus },
+    userId: data.userId,
+  });
+});
+
+eventBus.on(events.CALL_COMPLETED, (data) => {
+  createActivity({
+    relatedToType: "Call",
+    relatedToId: data.callId,
+    action: ACTIONS.STATUS_CHANGE,
+    title: "Call Completed",
+    metadata: { oldValue: data.oldStatus, newValue: "Completed" },
+    userId: data.userId,
+  });
+});
+
+eventBus.on(events.CALL_DELETED, (data) => {
+  createActivity({
+    relatedToType: "Call",
+    relatedToId: data.callId,
+    action: ACTIONS.DELETE,
+    title: "Call Deleted",
+    userId: data.userId,
+  });
+});

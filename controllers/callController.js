@@ -1,11 +1,18 @@
 const Call = require("../models/Call");
+const eventBus = require("../utils/eventBus");
+const events = require("../constants/events");
+
+const CALL_USER_FIELDS =
+  "firstName middleName lastName suffixName email profilePicture";
+const populateCallUsers = (query) =>
+  query
+    .populate("assignedTo", "firstName lastName")
+    .populate("createdBy", CALL_USER_FIELDS);
 
 // 1. GET ALL CALLS (Removed client populate)
 const getAllCalls = async (req, res) => {
   try {
-    const calls = await Call.find()
-      .populate("assignedTo", "firstName lastName")
-      .sort({ schedule: -1 });
+    const calls = await populateCallUsers(Call.find()).sort({ schedule: -1 });
 
     res.status(200).json(calls);
   } catch (error) {
@@ -46,8 +53,13 @@ const createCall = async (req, res) => {
       createdBy: userId,
     });
 
-    const populatedCall = await Call.findById(newCall._id)
-      .populate("assignedTo", "firstName lastName");
+    const populatedCall = await populateCallUsers(Call.findById(newCall._id));
+
+    eventBus.emit(events.CALL_CREATED, {
+      callId: newCall._id,
+      status: newCall.status,
+      userId,
+    });
 
     res.status(201).json(populatedCall);
   } catch (error) {
@@ -108,10 +120,33 @@ const updateCall = async (req, res) => {
       { new: true, runValidators: true } // { new: true } para ibalik ang pinakabagong data sa response
     );
 
-    const populatedCall = await updatedCall.populate(
-      "assignedTo",
-      "firstName lastName",
+    const populatedCall = await populateCallUsers(
+      Call.findById(updatedCall._id),
     );
+
+    const userId = req.user.userId;
+    if (
+      existingCall.status !== "Completed" &&
+      updatedCall.status === "Completed"
+    ) {
+      eventBus.emit(events.CALL_COMPLETED, {
+        callId: updatedCall._id,
+        oldStatus: existingCall.status,
+        userId,
+      });
+    } else if (existingCall.status !== updatedCall.status) {
+      eventBus.emit(events.CALL_STATUS_CHANGED, {
+        callId: updatedCall._id,
+        oldStatus: existingCall.status,
+        newStatus: updatedCall.status,
+        userId,
+      });
+    } else {
+      eventBus.emit(events.CALL_UPDATED, {
+        callId: updatedCall._id,
+        userId,
+      });
+    }
 
     res.status(200).json(populatedCall);
   } catch (error) {
@@ -124,6 +159,12 @@ const deleteCall = async (req, res) => {
   try {
     const deleted = await Call.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ error: "Call not found" });
+
+    eventBus.emit(events.CALL_DELETED, {
+      callId: deleted._id,
+      userId: req.user.userId,
+    });
+
     res.status(200).json({ message: "Call deleted successfully" });
   } catch (error) {
     console.error("Delete call error:", error);
