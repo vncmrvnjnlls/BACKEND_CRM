@@ -85,9 +85,25 @@ const getLeadNameFromProspect = (prospect) => {
 const normalizeProspectPayload = (reqBody = {}) => {
   const representative = reqBody.representativeName || {};
   const owner = reqBody.ownerName || {};
+  
   const rawAddress = reqBody.address || reqBody.businessAddress || {};
+  const province = rawAddress.province || reqBody.province || "";
+  const municipality = rawAddress.municipality || rawAddress.city || reqBody.city || "";
+  const barangay = rawAddress.barangay || rawAddress.district || reqBody.barangay || "";
+  const street = rawAddress.street || rawAddress.streetAddress || reqBody.street || "";
+  const houseNumber = rawAddress.houseNumber || reqBody.houseNumber || "";
+  const zipCode = rawAddress.zipCode || reqBody.zipCode || "";
+  const country = rawAddress.country || reqBody.country || "Philippines";
+
+  const regionCode = rawAddress.regionCode || reqBody.regionCode || "";
+  const provinceCode = rawAddress.provinceCode || reqBody.provinceCode || "";
+  const municipalityCode = rawAddress.municipalityCode || rawAddress.cityCode || reqBody.municipalityCode || "";
+  const barangayCode = rawAddress.barangayCode || reqBody.barangayCode || "";
+  const isNCRCity = rawAddress.isNCRCity || reqBody.isNCRCity || false;
+
   const companyName = reqBody.companyName || reqBody.company || "";
-  const companyEmailAddress = reqBody.companyEmailAddress || reqBody.companyEmail || reqBody.emailAddress || reqBody.email || "";
+  const companyEmailAddress =
+    reqBody.companyEmailAddress || reqBody.companyEmail || reqBody.emailAddress || reqBody.email || "";
   const companyWebsite = reqBody.companyWebsite || "";
   const natureOfBusiness = reqBody.natureOfBusiness || reqBody.industry || "";
   const emailAddress = reqBody.emailAddress || reqBody.email || companyEmailAddress || "";
@@ -122,20 +138,25 @@ const normalizeProspectPayload = (reqBody = {}) => {
     viber: reqBody.viber || "",
     phone,
     businessAddress: {
-      houseNumber: rawAddress.houseNumber || reqBody.houseNumber || "",
-      streetAddress: rawAddress.streetAddress || rawAddress.street || "",
-      city: rawAddress.city || rawAddress.municipality || "",
-      province: rawAddress.province || "",
-      country: rawAddress.country || reqBody.country || "Philippines",
+      houseNumber,
+      streetAddress: street,
+      city: municipality,
+      province,
+      country,
     },
     address: {
-      country: rawAddress.country || reqBody.country || "Philippines",
-      province: rawAddress.province || reqBody.province || "",
-      municipality: rawAddress.municipality || rawAddress.city || reqBody.city || "",
-      barangay: rawAddress.barangay || rawAddress.district || reqBody.barangay || "",
-      street: rawAddress.street || rawAddress.streetAddress || reqBody.street || "",
-      houseNumber: rawAddress.houseNumber || reqBody.houseNumber || "",
-      zipCode: rawAddress.zipCode || reqBody.zipCode || "",
+      country,
+      province,
+      municipality,
+      barangay,
+      street,
+      houseNumber,
+      zipCode,
+      regionCode,
+      provinceCode,
+      municipalityCode,
+      barangayCode,
+      isNCRCity,
     },
     status: reqBody.status || "New",
     leadSource: reqBody.leadSource || "Website",
