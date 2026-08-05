@@ -11,8 +11,43 @@ const createActivity = async (payload) => {
   }
 };
 
-// ---------------- LEADS ----------------
+// ---------------- PROSPECTS ----------------
+eventBus.on(events.PROSPECT_CREATED, (data) => {
+  createActivity({
+    relatedToType: "Prospect",
+    relatedToId: data.prospectId,
+    action: ACTIONS.CREATE,
+    title: "Prospect Created",
+    description: "Prospect was created",
+    userId: data.userId,
+  });
+});
 
+eventBus.on(events.PROSPECT_UPDATED, (data) => {
+  createActivity({
+    relatedToType: "Prospect",
+    relatedToId: data.prospectId,
+    action: ACTIONS.UPDATE,
+    title: "Prospect Updated",
+    userId: data.userId,
+  });
+});
+
+eventBus.on(events.PROSPECT_ASSIGNED, (data) => {
+  createActivity({
+    relatedToType: "Prospect",
+    relatedToId: data.prospectId,
+    action: ACTIONS.ASSIGN,
+    title: "Handling Officer Updated",
+    metadata: {
+      oldValue: data.oldAssignee,
+      newValue: data.newAssignee,
+    },
+    userId: data.userId,
+  });
+});
+
+// ---------------- LEADS ----------------
 eventBus.on(events.LEAD_CREATED, (data) => {
   createActivity({
     relatedToType: "Lead",

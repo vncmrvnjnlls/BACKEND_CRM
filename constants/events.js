@@ -1,4 +1,10 @@
 module.exports = {
+ // Prospects
+  PROSPECT_CREATED: "prospect.created",
+  PROSPECT_UPDATED: "prospect.updated",
+  PROSPECT_ASSIGNED: "prospect.assigned",
+  PROSPECT_STATUS_CHANGED:"prospect.status.changed",
+
   // Leads
   LEAD_CREATED: "lead.created",
   LEAD_UPDATED: "lead.updated",
