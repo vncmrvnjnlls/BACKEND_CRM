@@ -52,6 +52,9 @@ const getAllMeetings = async (req, res) => {
 
     const meetings = await Meeting.find(filter)
       .sort({ date: 1, startTime: 1 })
+      .populate({ path: "createdBy", select: "firstName lastName profilePicture", options: { strictPopulate: false } })
+      .populate({ path: "assignedTo", select: "firstName lastName profilePicture", options: { strictPopulate: false } })
+      .populate({ path: "attendees", select: "firstName lastName profilePicture", options: { strictPopulate: false } })
       .populate({ path: "relatedToClient", select: "firstName lastName companyName", options: { strictPopulate: false } })
       .lean();
 
