@@ -6,6 +6,10 @@ const crypto = require("crypto");
 const Team = require("../models/Team");
 const PasswordResetToken = require("../models/PasswordResetToken");
 const { sendPasswordResetEmail } = require("../services/emailService");
+const {
+  normalizeUserAccess,
+  serializeUserAccess,
+} = require("../utils/userAccess");
 
 const ACCESS_TOKEN_EXPIRY = "1d";
 const REFRESH_TOKEN_EXPIRY = 7 * 24 * 60 * 60 * 1000;
@@ -48,6 +52,7 @@ const clearRefreshCookie = (res) => {
 };
 
 const formatUser = async (user) => {
+  normalizeUserAccess(user);
   const managedTeam =
     user.role === "Sales Manager"
       ? await Team.findOne({
@@ -56,7 +61,7 @@ const formatUser = async (user) => {
         }).select("_id name")
       : null;
 
-  return {
+  return serializeUserAccess({
     _id: user._id,
     id: user._id,
 
@@ -79,12 +84,12 @@ const formatUser = async (user) => {
     lastName: user.lastName,
     suffixName: user.suffixName,
     email: user.email,
-    role: user.role,
     profilePicture: user.profilePicture,
     phone: user.phone,
     status: user.status,
-    accessModules: Array.isArray(user.accessModules) ? user.accessModules : [],
-  };
+    role: user.role,
+    accessModules: user.accessModules,
+  });
 };
 
 exports.login = async (req, res) => {
@@ -98,6 +103,9 @@ exports.login = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+
+    normalizeUserAccess(user);
+    await user.save();
 
     const isMatch = await bcrypt.compare(password, user.password);
 
@@ -157,6 +165,9 @@ exports.refresh = async (req, res) => {
       clearRefreshCookie(res);
       return res.status(401).json({ message: "User not found" });
     }
+
+    normalizeUserAccess(user);
+    await user.save();
 
     stored.isRevoked = true;
     await stored.save();

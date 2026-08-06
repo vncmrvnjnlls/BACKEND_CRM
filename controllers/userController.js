@@ -8,6 +8,11 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const { getAssignableUsersForRequest } = require("../utils/teamScope");
 const { USER_DEFAULT_SORT } = require("../constants/sortOptions");
+const {
+  normalizeAccessModules,
+  normalizeRole,
+  serializeUserAccess,
+} = require("../utils/userAccess");
 
 const TEAM_POPULATE = {
   path: "team",
@@ -57,7 +62,7 @@ const getAllUsers = async (req, res) => {
       .populate(TEAM_POPULATE)
       .sort(USER_DEFAULT_SORT);
 
-    res.status(200).json(users);
+    res.status(200).json(users.map((user) => serializeUserAccess(user.toObject())));
   } catch (error) {
     console.error("Get all users error:", error);
     res.status(500).json({ error: "Failed to fetch users" });
@@ -85,7 +90,7 @@ const getSingleUser = async (req, res) => {
       return res.status(404).json({ error: "No such user" });
     }
 
-    res.status(200).json(user);
+    res.status(200).json(serializeUserAccess(user.toObject()));
   } catch (error) {
     console.error("Get single user error:", error);
     res.status(500).json({ error: "Failed to fetch user" });
@@ -104,12 +109,13 @@ const createUser = async (req, res) => {
     suffixName,
     email,
     password,
-    role,
+    role: requestedRole,
     phone,
     sex,
     dateOfBirth,
     placeOfBirth
   } = req.body;
+  const role = normalizeRole(requestedRole);
 
   // Ligtas na pagbuo sa currentAddress sub-object mula sa structural variations ng incoming body payload
   const currentAddress = {
@@ -182,7 +188,7 @@ const createUser = async (req, res) => {
     }
 
     const populatedUser = await User.findById(user._id).populate(TEAM_POPULATE);
-    res.status(200).json(populatedUser);
+    res.status(200).json(serializeUserAccess(populatedUser.toObject()));
 
   } catch (error) {
     if (error.code === 11000 && error.keyPattern?.email) {
@@ -260,7 +266,7 @@ const updateUser = async (req, res) => {
       return res.status(404).json({ error: "No such user" });
     }
 
-    const nextRole = req.body.role ?? existingUser.role;
+    const nextRole = normalizeRole(req.body.role ?? existingUser.role);
     const nextTeam =
       req.body.team !== undefined
         ? req.body.team || null
@@ -365,7 +371,7 @@ const updateUser = async (req, res) => {
       }
     }
 
-    res.status(200).json(user);
+    res.status(200).json(serializeUserAccess(user.toObject()));
   } catch (error) {
     console.error("Update user error:", error);
     return res.status(400).json({ error: error.message });
@@ -691,7 +697,7 @@ const updateUserAccess = async (req, res) => {
     }
 
     const currentUser = req.user;
-    const newRole = role || targetUser.role;
+    const newRole = normalizeRole(role || targetUser.role);
 
     if (currentUser.role === "Admin") {
       if (
@@ -713,19 +719,19 @@ const updateUserAccess = async (req, res) => {
       });
     }
 
-    if (role) targetUser.role = role;
-    if (Array.isArray(accessModules)) targetUser.accessModules = accessModules;
+    if (role) targetUser.role = newRole;
+    if (Array.isArray(accessModules)) {
+      targetUser.accessModules = normalizeAccessModules(
+        accessModules,
+        targetUser.role,
+      );
+    }
 
     await targetUser.save();
 
     res.status(200).json({
       message: "User privileges saved and updated successfully.",
-      user: {
-        _id: targetUser._id,
-        name: `${targetUser.firstName} ${targetUser.lastName}`,
-        role: targetUser.role,
-        accessModules: targetUser.accessModules,
-      },
+      user: serializeUserAccess(targetUser.toObject()),
     });
   } catch (error) {
     console.error("Update user access error:", error);
