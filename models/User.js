@@ -71,7 +71,7 @@ const userSchema = new mongoose.Schema(
     },
     accessModules: {
       type: [{ type: String, enum: ACCESS_MODULES }],
-      default: [], // Sasalo sa array ng custom modules tulad ng ["Dashboard", "Teams", "Clients"]
+      default: [],
       set(value) {
         return normalizeAccessModules(value, this.role);
       },
@@ -147,10 +147,9 @@ const userSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-userSchema.pre("validate", function normalizeUserModules(next) {
+userSchema.pre("validate", function normalizeUserModules() {
   this.role = normalizeRole(this.role);
   this.accessModules = normalizeAccessModules(this.accessModules, this.role);
-  next();
 });
 
 module.exports = mongoose.model("User", userSchema);
