@@ -1,5 +1,10 @@
 const mongoose = require("mongoose");
 const { customAlphabet } = require("nanoid");
+const {
+  ACCESS_MODULES,
+  normalizeAccessModules,
+  normalizeRole,
+} = require("../utils/userAccess");
 
 // Only uppercase letters + numbers
 const nanoid = customAlphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 6);
@@ -62,10 +67,14 @@ const userSchema = new mongoose.Schema(
       enum: ["Super Admin", "Admin", "Sales Manager", "Sales Agent", "Support Staff"],
       required: true,
       index: true,
+      set: normalizeRole,
     },
     accessModules: {
-      type: [String],
-      default: [], // Sasalo sa array ng custom modules tulad ng ["Dashboard", "Teams", "Clients"]
+      type: [{ type: String, enum: ACCESS_MODULES }],
+      default: [],
+      set(value) {
+        return normalizeAccessModules(value, this.role);
+      },
     },
     phone: {
       type: String,
@@ -137,5 +146,10 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+userSchema.pre("validate", function normalizeUserModules() {
+  this.role = normalizeRole(this.role);
+  this.accessModules = normalizeAccessModules(this.accessModules, this.role);
+});
 
 module.exports = mongoose.model("User", userSchema);
