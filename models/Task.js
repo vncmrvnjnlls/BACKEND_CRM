@@ -1,5 +1,22 @@
 const mongoose = require("mongoose");
 
+// Schema for individual links
+const linkSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    url: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+  },
+  { _id: false } // Prevents Mongoose from generating sub-object IDs for each link item
+);
+
 const taskSchema = new mongoose.Schema(
   {
     subject: {
@@ -65,18 +82,10 @@ const taskSchema = new mongoose.Schema(
       default: "None",
     },
 
-    // 🌟 Link URL string (to match controllers that save link as a string)
-    link: {
-      type: String,
-      trim: true,
-      default: "",
-    },
-
-    // 🌟 Dedicated linkName property to match your controller and frontend payload
-    linkName: {
-      type: String,
-      trim: true,
-      default: "",
+    // 🌟 UPDATED: Array of link objects to support multiple links [{ name, url }]
+    links: {
+      type: [linkSchema],
+      default: [],
     },
 
     attachments: {
