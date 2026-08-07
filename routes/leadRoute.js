@@ -13,8 +13,6 @@ const {
   updateLeadStatus,
   deleteLead,
   assignLead,
-  requestLeadConversion,
-  approveLeadConversion,
   convertLeadToCustomer,
   reorderLeadPositions,
 } = require("../controllers/leadController");
@@ -78,20 +76,6 @@ router.delete("/:id", requireRole("Admin"), deleteLead);
 
 // PATCH assign lead — Admin/Manager only
 router.patch("/:id/assign", requireRole("Admin", "Sales Manager"), assignLead);
-
-// PATCH request conversion — Sales Agent only
-router.patch(
-  "/:id/request-conversion",
-  requireRole("Sales Agent"),
-  requestLeadConversion,
-);
-
-// PATCH approve conversion — Admin/Manager only
-router.patch(
-  "/:id/approve-conversion",
-  requireRole("Admin", "Sales Manager"),
-  approveLeadConversion,
-);
 
 // POST convert to customer — all three roles (controller enforces agent approval check)
 router.post(
