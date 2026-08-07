@@ -1,6 +1,5 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const { normalizeUserAccess } = require("../utils/userAccess");
 
 const protect = async (req, res, next) => {
   try {
@@ -34,8 +33,6 @@ const protect = async (req, res, next) => {
         message: "User not found",
       });
     }
-
-    normalizeUserAccess(user);
 
     req.user = {
       ...user.toObject(),
