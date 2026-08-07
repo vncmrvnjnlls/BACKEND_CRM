@@ -37,6 +37,38 @@ const normalizeExistingAttachments = (existingAttachments) => {
         : item,
     );
 };
+
+// 🌟 Helper function to parse and format array of links
+const normalizeLinks = (linksInput) => {
+  if (!linksInput) return [];
+  let parsed = linksInput;
+
+  // Handles JSON stringified payload sent via FormData/Multer
+  if (typeof linksInput === "string") {
+    try {
+      parsed = JSON.parse(linksInput);
+    } catch (err) {
+      return [];
+    }
+  }
+
+  if (!Array.isArray(parsed)) {
+    if (typeof parsed === "object" && parsed !== null) {
+      parsed = [parsed];
+    } else {
+      return [];
+    }
+  }
+
+  return parsed
+    .filter(Boolean)
+    .map((item) => ({
+      name: typeof item.name === "string" ? item.name.trim() : "",
+      url: typeof item.url === "string" ? item.url.trim() : "",
+    }))
+    .filter((item) => item.name !== "" || item.url !== "");
+};
+
 const eventBus = require("../utils/eventBus");
 const events = require("../constants/events");
 
@@ -74,9 +106,8 @@ const fetchAllTasks = async (req) => {
     { $match: filter },
     {
       $addFields: {
-        // 🌟 Ensures 'link', 'linkName', and 'dueTime' fields are always included in aggregate results
-        link: { $ifNull: ["$link", ""] },
-        linkName: { $ifNull: ["$linkName", ""] },
+        // 🌟 Replaced single link/linkName fields with links array fallback
+        links: { $ifNull: ["$links", []] },
         dueTime: { $ifNull: ["$dueTime", ""] },
         priorityOrder: {
           $switch: {
@@ -193,8 +224,7 @@ const createTask = async (req, res) => {
       scope,
       relatedToType,
       relatedTo,
-      link,
-      linkName,
+      links, // 🌟 Extracted links
     } = req.body;
 
     if (role === "Sales Agent" && assignedTo && assignedTo !== userId) {
@@ -257,8 +287,7 @@ const createTask = async (req, res) => {
       completedAt: resolvedStatus === "Completed" ? new Date() : null,
       position: nextPosition,
       scope: resolvedScope,
-      link: link || "",
-      linkName: linkName || "", // 🌟 Saved linkName field
+      links: normalizeLinks(links), // 🌟 Store array of formatted links
       attachments: [...existingAttachments, ...newAttachments],
     });
 
@@ -311,8 +340,7 @@ const updateTaskDetails = async (req, res) => {
       scope,
       relatedToType,
       relatedTo,
-      link,
-      linkName,
+      links, // 🌟 Extracted links
     } = req.body;
 
     const updateData = {
@@ -327,9 +355,12 @@ const updateTaskDetails = async (req, res) => {
       repeat,
       relatedToType: relatedToType || null,
       relatedTo: relatedTo || null,
-      link: link !== undefined ? link : existing.link,
-      linkName: linkName !== undefined ? linkName : existing.linkName,
     };
+
+    // 🌟 Update links if provided in the payload
+    if (links !== undefined) {
+      updateData.links = normalizeLinks(links);
+    }
 
     const existingAttachments = normalizeExistingAttachments(
       req.body.existingAttachments,
