@@ -2,7 +2,6 @@ const express        = require("express");
 const upload         = require("../middleware/upload");
 const router         = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
-const requireRole = require("../middleware/roleMiddleware");
 
 const {
   getSettings,
@@ -13,7 +12,7 @@ const {
   updateNotificationPreferences,
 } = require("../controllers/settingsController");
 
-router.use(authMiddleware, requireRole("Super Admin", "Admin"));
+router.use(authMiddleware);
 
 // GET logged-in user's settings
 router.get("/", getSettings);
