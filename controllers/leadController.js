@@ -19,8 +19,7 @@ const events = require("../constants/events");
 const POPULATE_FIELDS =
   "firstName middleName lastName suffixName email role employeeId profilePicture sex team";
 
-const POPULATE_ALL =
-  "leadOwner leadAssignee conversionRequestedBy conversionApprovedBy convertedBy";
+const POPULATE_ALL = "leadOwner leadAssignee convertedBy";
 
 const ALLOWED_STATUSES = ["New", "Contacted", "Qualified", "Converted", "Lost"];
 const STAGE_ORDER = ["New", "Contacted", "Qualified"];
@@ -43,21 +42,6 @@ const validatePhone = (phone) => {
 };
 
 /**
- * Resets all lead conversion state fields to default values
- * Called when a conversion request is rejected or canceled
- * @param {Object} lead - Lead document to reset
- * @returns {void}
- */
-const resetConversionState = (lead) => {
-  lead.conversionRequested = false;
-  lead.conversionRequestedBy = null;
-  lead.conversionRequestedAt = null;
-  lead.conversionApproved = false;
-  lead.conversionApprovedBy = null;
-  lead.conversionApprovedAt = null;
-};
-
-/**
  * Fetches all leads accessible to the current user
  * Applies access control filters based on user role
  * Plus advanced query filters for side panel and global search (Zoho Style)
@@ -67,16 +51,12 @@ const resetConversionState = (lead) => {
  * @returns {Promise<Array>} Array of lead documents with populated user references
  */
 const fetchAllLeads = async (req) => {
-  // 1. Kunin muna ang base security/role access filter na gawa mo na sa utils
   const baseFilter = await buildLeadAccessFilter(req);
 
-  // 2. Kunin ang mga filter inputs mula sa URL Query params (?search=vince&status=New)
   const { search, leadSource, status, municipality, province, country, leadAssignee } = req.query;
   
-  // Pagsamahin ang security constraints at ang search queries
   let filter = { ...baseFilter };
 
-  // 🔍 Global Search Bar: Para sa Pangalan, Kumpanya, o Email
   if (search) {
     filter.$or = [
       { firstName: { $regex: search, $options: "i" } },
@@ -86,7 +66,6 @@ const fetchAllLeads = async (req) => {
     ];
   }
 
-  // 🎯 Left Side Panel Filters (Zoho CRM Style)
   if (leadSource) {
     filter.leadSource = leadSource;
   }
@@ -94,10 +73,9 @@ const fetchAllLeads = async (req) => {
     filter.status = status;
   }
   if (leadAssignee) {
-    filter.leadAssignee = new mongoose.Types.ObjectId(leadAssignee); // Siguraduhing ObjectId para sa aggregate pipeline
+    filter.leadAssignee = new mongoose.Types.ObjectId(leadAssignee);
   }
 
-  // 📍 Address-specific Filters (Para sa nested object ng bagong Lead model)
   if (municipality) {
     filter["address.municipality"] = { $regex: municipality, $options: "i" };
   }
@@ -108,7 +86,6 @@ const fetchAllLeads = async (req) => {
     filter["address.country"] = { $regex: country, $options: "i" };
   }
 
-  // 3. Patakbuhin ang aggregate pipeline gamit ang pinagsamang filter rules
   const leads = await Lead.aggregate([
     { $match: filter },
     {
@@ -130,7 +107,7 @@ const fetchAllLeads = async (req) => {
     {
       $sort: {
         statusOrder: 1,
-        position: 1, // Isinama ang position para sumunod sa Kanban reordering order mo
+        position: 1,
         assignedAt: -1,
         createdAt: -1,
       },
@@ -142,12 +119,6 @@ const fetchAllLeads = async (req) => {
 
 /**
  * Retrieves all leads accessible to the current user
- * Response includes populated user references for owners and assignees
- * @async
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @returns {Array} JSON array of lead objects
- * @throws {Error} Returns 500 on database error
  */
 const getAllLeads = async (req, res) => {
   try {
@@ -161,12 +132,6 @@ const getAllLeads = async (req, res) => {
 
 /**
  * Retrieves a single lead by ID
- * Checks access permissions (user must be owner or assignee)
- * @async
- * @param {Object} req - Express request object with leadId in params
- * @param {Object} res - Express response object
- * @returns {Object} Complete lead document with user references
- * @throws {Error} Returns 403 if insufficient access, 500 on database error
  */
 const getSingleLead = async (req, res) => {
   try {
@@ -191,21 +156,7 @@ const getSingleLead = async (req, res) => {
 };
 
 /**
- * Creates a new lead
- * Automatically assigns lead to current user if they are a Sales Agent
- * Managers can create leads and optionally assign to team members
- * Emits events for real-time updates
- * @async
- * @param {Object} req - Express request object
- * @param {string} req.body.firstName - Lead's first name (required)
- * @param {string} req.body.lastName - Lead's last name (required)
- * @param {string} req.body.phone - Lead's phone number (required)
- * @param {string} req.body.email - Lead's email (optional, must be unique)
- * @param {string} req.body.status - Initial lead status (defaults to 'New')
- * @param {string} req.body.leadAssignee - User ID to assign lead to (optional, managers only)
- * @param {Object} res - Express response object
- * @returns {Object} Created lead document with user references
- * @throws {Error} Returns 400 if validation fails, 500 on database error
+ * Creates a new lead supporting both Lead and Prospect payloads
  */
 const createLead = async (req, res) => {
   try {
@@ -213,23 +164,25 @@ const createLead = async (req, res) => {
     const userId = req.user.userId;
 
     const representative = req.body.representativeName || {};
-    const owner = req.body.ownerName || {};
 
-    const firstName = req.body.firstName || representative.firstName || owner.firstName || "";
-    const middleName = req.body.middleName || representative.middleName || representative.middleInitial || owner.middleName || owner.middleInitial || "";
-    const lastName = req.body.lastName || representative.lastName || owner.lastName || "";
+    const firstName = req.body.firstName ?? representative.firstName ?? "";
+    const middleName = req.body.middleName ?? representative.middleInitial ?? representative.middleName ?? "";
+    const lastName = req.body.lastName ?? representative.lastName ?? "";
     const suffixName = req.body.suffixName || representative.suffixName || "";
-    const email = req.body.email || req.body.emailAddress || req.body.companyEmailAddress || "";
+
+    const company = req.body.company || req.body.companyName || "";
+    const industry = req.body.industry || req.body.natureOfBusiness || "";
+    const email = req.body.email || req.body.companyEmailAddress || req.body.emailAddress || "";
+    const ownerName = req.body.ownerName || null;
+
     const phone = req.body.phone || "";
     const dateOfBirth = req.body.dateOfBirth || representative.birthday || req.body.birthday || null;
-    const company = req.body.company || req.body.companyName || "";
     const leadSource = req.body.leadSource || "Website";
     const status = req.body.status || "New";
-    const industry = req.body.industry || req.body.natureOfBusiness || "";
     const sex = req.body.sex || representative.gender || req.body.gender || "";
     const notes = req.body.notes || "";
 
-    const address = {
+    const address = req.body.address || {
       houseNumber: req.body["address.houseNumber"] || req.body.houseNumber || "",
       street: req.body["address.street"] || req.body.street || "",
       barangay: req.body["address.barangay"] || req.body.barangay || "",
@@ -307,6 +260,7 @@ const createLead = async (req, res) => {
       profilePicture,
       dateOfBirth,
       company,
+      ownerName,
       leadSource,
       status: resolvedStatus,
       industry,
@@ -371,27 +325,25 @@ const updateLeadDetails = async (req, res) => {
         .json({ error: "Converted leads cannot be edited" });
     }
 
-    // Capture old assignee before update for event comparison
     const previousAssignee = existing.leadAssignee?.toString() ?? null;
-
     const representative = req.body.representativeName || {};
-    const owner = req.body.ownerName || {};
 
     const updateData = {
-      firstName: req.body.firstName || representative.firstName || owner.firstName,
-      middleName: req.body.middleName || representative.middleName || representative.middleInitial || owner.middleName || owner.middleInitial,
-      lastName: req.body.lastName || representative.lastName || owner.lastName,
+      firstName: req.body.firstName ?? representative.firstName,
+      middleName: req.body.middleName ?? representative.middleInitial ?? representative.middleName,
+      lastName: req.body.lastName ?? representative.lastName,
       suffixName: req.body.suffixName || representative.suffixName,
-      email: req.body.email || req.body.emailAddress || req.body.companyEmailAddress,
+      email: req.body.email || req.body.companyEmailAddress || req.body.emailAddress,
       phone: req.body.phone,
       dateOfBirth: req.body.dateOfBirth || representative.birthday || req.body.birthday,
       company: req.body.company || req.body.companyName,
+      ownerName: req.body.ownerName,
       leadSource: req.body.leadSource,
       status: req.body.status,
       industry: req.body.industry || req.body.natureOfBusiness,
       sex: req.body.sex || representative.gender || req.body.gender,
       notes: req.body.notes,
-      address: {
+      address: req.body.address || {
         houseNumber: req.body["address.houseNumber"] || req.body.houseNumber,
         street: req.body["address.street"] || req.body.street,
         barangay: req.body["address.barangay"] || req.body.barangay,
@@ -456,7 +408,6 @@ const updateLeadDetails = async (req, res) => {
       teamId: req.user.teamId,
     });
 
-    // Emit LEAD_ASSIGNED only if assignee actually changed
     if (assigneeChanged) {
       eventBus.emit(events.LEAD_ASSIGNED, {
         leadId: id,
@@ -493,19 +444,20 @@ const updateOwnLeadDetails = async (req, res) => {
     const representative = req.body.representativeName || {};
 
     const updateData = {
-      firstName: req.body.firstName || representative.firstName,
-      middleName: req.body.middleName || representative.middleName || representative.middleInitial,
-      lastName: req.body.lastName || representative.lastName,
+      firstName: req.body.firstName ?? representative.firstName,
+      middleName: req.body.middleName ?? representative.middleInitial ?? representative.middleName,
+      lastName: req.body.lastName ?? representative.lastName,
       suffixName: req.body.suffixName || representative.suffixName,
-      email: req.body.email || req.body.emailAddress || req.body.companyEmailAddress,
+      email: req.body.email || req.body.companyEmailAddress || req.body.emailAddress,
       phone: req.body.phone,
       dateOfBirth: req.body.dateOfBirth || representative.birthday || req.body.birthday,
       company: req.body.company || req.body.companyName,
+      ownerName: req.body.ownerName,
       leadSource: req.body.leadSource,
       industry: req.body.industry || req.body.natureOfBusiness,
       sex: req.body.sex || representative.gender || req.body.gender,
       notes: req.body.notes,
-      address: {
+      address: req.body.address || {
         houseNumber: req.body["address.houseNumber"] || req.body.houseNumber,
         street: req.body["address.street"] || req.body.street,
         barangay: req.body["address.barangay"] || req.body.barangay,
@@ -580,12 +532,6 @@ const updateLeadStatus = async (req, res) => {
       return res.status(403).json({ error: "Access denied" });
     }
 
-    if (role === "Sales Agent" && status === "Converted") {
-      return res
-        .status(403)
-        .json({ error: "Sales Agent cannot set status to Converted" });
-    }
-
     if (status === "Converted") {
       return res.status(400).json({
         error:
@@ -593,7 +539,6 @@ const updateLeadStatus = async (req, res) => {
       });
     }
 
-    // ✅ Capture old status BEFORE any mutation
     const oldStatus = lead.status;
 
     if (oldStatus === "Lost") {
@@ -615,15 +560,6 @@ const updateLeadStatus = async (req, res) => {
           error: `Cannot skip stages. Move from ${oldStatus} to ${STAGE_ORDER[currentIndex + 1]} first.`,
         });
       }
-
-      if (nextIndex < currentIndex) {
-        resetConversionState(lead);
-        await lead.save();
-      }
-    }
-
-    if (status === "Lost") {
-      resetConversionState(lead);
     }
 
     if (Array.isArray(updates) && updates.length > 0) {
@@ -766,124 +702,6 @@ const assignLead = async (req, res) => {
   }
 };
 
-const requestLeadConversion = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user.userId;
-
-    const lead = await Lead.findById(id);
-    if (!lead) return res.status(404).json({ error: "Lead not found" });
-
-    if (lead.leadAssignee?.toString() !== userId) {
-      return res.status(403).json({ error: "Access denied" });
-    }
-
-    if (lead.convertedToCustomer) {
-      return res.status(400).json({ error: "Lead has already been converted" });
-    }
-
-    if (lead.status !== "Qualified") {
-      return res
-        .status(400)
-        .json({ error: "Only qualified leads can request conversion" });
-    }
-
-    if (lead.conversionRequested) {
-      return res
-        .status(400)
-        .json({ error: "Conversion has already been requested" });
-    }
-
-    lead.conversionRequested = true;
-    lead.conversionRequestedBy = userId;
-    lead.conversionRequestedAt = new Date();
-    await lead.save();
-
-    eventBus.emit(events.LEAD_CONVERSION_REQUESTED, {
-      leadId: lead._id,
-      userId,
-      teamId: req.user.teamId,
-    });
-
-    const populated = await Lead.findById(lead._id).populate(
-      POPULATE_ALL,
-      POPULATE_FIELDS,
-    );
-
-    res
-      .status(200)
-      .json({ message: "Conversion requested successfully", lead: populated });
-  } catch (error) {
-    console.error("Request conversion error:", error);
-    res.status(500).json({ error: error.message });
-  }
-};
-
-const approveLeadConversion = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user.userId;
-
-    const lead = await Lead.findById(id);
-    if (!lead) return res.status(404).json({ error: "Lead not found" });
-
-    const access = await ensureDocumentAccess(req, lead, [
-      (doc) => doc?.leadAssignee,
-      (doc) => doc?.leadOwner,
-    ]);
-
-    if (!access.ok && req.user.role !== "Admin") {
-      return res.status(access.status).json({ error: access.error });
-    }
-
-    if (lead.convertedToCustomer) {
-      return res.status(400).json({ error: "Lead has already been converted" });
-    }
-
-    if (lead.status !== "Qualified") {
-      return res
-        .status(400)
-        .json({ error: "Only qualified leads can approve conversion" });
-    }
-
-    if (lead.conversionApproved) {
-      return res
-        .status(400)
-        .json({ error: "Conversion has already been approved" });
-    }
-
-    const leadOwner = await User.findById(lead.leadOwner);
-    if (leadOwner?.role === "Sales Agent" && !lead.conversionRequested) {
-      return res.status(400).json({
-        error: "Agent must request conversion before it can be approved",
-      });
-    }
-
-    lead.conversionApproved = true;
-    lead.conversionApprovedBy = userId;
-    lead.conversionApprovedAt = new Date();
-    await lead.save();
-
-    eventBus.emit(events.LEAD_CONVERSION_APPROVED, {
-      leadId: lead._id,
-      userId,
-      teamId: req.user.teamId,
-    });
-
-    const populated = await Lead.findById(lead._id).populate(
-      POPULATE_ALL,
-      POPULATE_FIELDS,
-    );
-
-    res
-      .status(200)
-      .json({ message: "Conversion approved successfully", lead: populated });
-  } catch (error) {
-    console.error("Approve conversion error:", error);
-    res.status(500).json({ error: error.message });
-  }
-};
-
 const convertLeadToCustomer = async (req, res) => {
   try {
     const { id } = req.params;
@@ -916,12 +734,6 @@ const convertLeadToCustomer = async (req, res) => {
 
     if (role === "Sales Agent" && lead.leadAssignee?.toString() !== userId) {
       return res.status(403).json({ error: "Access denied" });
-    }
-
-    if (role === "Sales Agent" && !lead.conversionApproved) {
-      return res.status(403).json({
-        error: "Conversion must be approved by a manager or admin first",
-      });
     }
 
     const assigneeId = lead.leadAssignee
@@ -1068,8 +880,6 @@ module.exports = {
   updateLeadStatus,
   deleteLead,
   assignLead,
-  requestLeadConversion,
-  approveLeadConversion,
   convertLeadToCustomer,
   reorderLeadPositions,
 };
